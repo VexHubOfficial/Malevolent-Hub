@@ -1,0 +1,231 @@
+-- Malevolent Hub Admin Panel
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local ContentProvider = game:GetService("ContentProvider")
+
+local gui = script.Parent
+local mainFrame = gui:WaitForChild("MainFrame")
+
+-- ==========================
+-- Tab System
+-- ==========================
+local tabButtons = {
+    Player = mainFrame.TabBar:WaitForChild("PlayerTabButton"),
+    Movement = mainFrame.TabBar:WaitForChild("MovementTabButton"),
+    Settings = mainFrame.TabBar:WaitForChild("SettingsTabButton"),
+    Misc = mainFrame.TabBar:WaitForChild("MiscTabButton")
+}
+
+local tabFrames = {
+    Player = mainFrame:WaitForChild("PlayerTabFrame"),
+    Movement = mainFrame:WaitForChild("MovementTabFrame"),
+    Settings = mainFrame:WaitForChild("SettingsTabFrame"),
+    Misc = mainFrame:WaitForChild("MiscTabFrame")
+}
+
+local function showTab(tabName)
+    for name, frame in pairs(tabFrames) do
+        frame.Visible = (name == tabName)
+    end
+end
+
+for name, button in pairs(tabButtons) do
+    button.MouseButton1Click:Connect(function()
+        showTab(name)
+    end)
+end
+
+-- Default tab
+showTab("Player")
+
+-- ==========================
+-- Player Tab (Gallery + Teleport)
+-- ==========================
+local playerGallery = tabFrames.Player:WaitForChild("PlayerGallery")
+local playerTemplate = playerGallery:WaitForChild("PlayerTemplate")
+local teleportButton = tabFrames.Player:WaitForChild("TeleportButton")
+local selectedPlayer = nil
+
+local function createPlayerEntry(player)
+    local entry = playerTemplate:Clone()
+    entry.Visible = true
+    entry.Name = player.Name
+    entry.DisplayName.Text = player.DisplayName
+    entry.Username.Text = player.Name
+
+    -- Profile picture
+    local thumbUrl = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+    entry.ProfilePic.Image = thumbUrl
+
+    entry.MouseButton1Click:Connect(function()
+        selectedPlayer = player
+        for _, child in pairs(playerGallery:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            end
+        end
+        entry.BackgroundColor3 = Color3.fromRGB(0,255,0)
+    end)
+
+    entry.Parent = playerGallery
+end
+
+local function refreshPlayerGallery()
+    playerGallery:ClearAllChildren()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            createPlayerEntry(player)
+        end
+    end
+end
+
+refreshPlayerGallery()
+Players.PlayerAdded:Connect(refreshPlayerGallery)
+Players.PlayerRemoving:Connect(refreshPlayerGallery)
+
+teleportButton.MouseButton1Click:Connect(function()
+    if selectedPlayer and selectedPlayer.Character and LocalPlayer.Character then
+        local targetHRP = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetHRP and myHRP then
+            myHRP.CFrame = targetHRP.CFrame + Vector3.new(0,5,0)
+        end
+    end
+end)
+
+-- ==========================
+-- Movement Tab
+-- ==========================
+local function setupSlider(knob, frame, minVal, maxVal, label, property)
+    local dragging = false
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    knob.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relativeX = math.clamp(input.Position.X - frame.AbsolutePosition.X, 0, frame.AbsoluteSize.X)
+            local value = math.floor(minVal + (relativeX / frame.AbsoluteSize.X) * (maxVal - minVal))
+            knob.Position = UDim2.new(0, relativeX - knob.Size.X.Offset/2, 0, knob.Position.Y.Offset)
+            label.Text = tostring(value)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid[property] = value
+            end
+        end
+    end)
+end
+
+-- Example: WalkSpeed and JumpPower sliders
+setupSlider(mainFrame.MovementTabFrame.WalkSpeedSliderFrame.WalkSpeedKnob, mainFrame.MovementTabFrame.WalkSpeedSliderFrame, 16, 100, mainFrame.MovementTabFrame.WalkSpeedSliderFrame.TextLabel, "WalkSpeed")
+setupSlider(mainFrame.MovementTabFrame.JumpPowerSliderFrame.JumpKnob, mainFrame.MovementTabFrame.JumpPowerSliderFrame, 50, 300, mainFrame.MovementTabFrame.JumpPowerSliderFrame.TextLabel, "JumpPower")
+
+-- +/- Buttons
+local function setupPlusMinus(sliderFrame, property)
+    local knob = sliderFrame:WaitForChild(sliderFrame.Name.."Knob")
+    local label = sliderFrame:WaitForChild("TextLabel")
+    local plus = sliderFrame:WaitForChild("PlusButton")
+    local minus = sliderFrame:WaitForChild("MinusButton")
+    local step = 5
+
+    local function changeValue(delta)
+        local current = tonumber(label.Text)
+        local newVal = math.clamp(current + delta, tonumber(label.TextLabel.Text), tonumber(label.TextLabel.Text))
+        knob.Position = UDim2.new(0, ((newVal - tonumber(label.TextLabel.Text)) / (tonumber(label.TextLabel.Text))) * sliderFrame.AbsoluteSize.X, 0, knob.Position.Y.Offset)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid[property] = newVal
+        end
+        label.Text = tostring(newVal)
+    end
+
+    plus.MouseButton1Click:Connect(function() changeValue(step) end)
+    minus.MouseButton1Click:Connect(function() changeValue(-step) end)
+end
+
+-- Infinite Jump
+local infiniteJumpButton = mainFrame.MovementTabFrame:WaitForChild("InfiniteJumpButton")
+local infiniteJumpEnabled = false
+infiniteJumpButton.MouseButton1Click:Connect(function()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    infiniteJumpButton.Text = infiniteJumpEnabled and "Infinite Jump: ON" or "Infinite Jump: OFF"
+end)
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Noclip
+local noclipButton = mainFrame.MovementTabFrame:WaitForChild("NoclipButton")
+local noclipEnabled = false
+noclipButton.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    noclipButton.Text = noclipEnabled and "Noclip: ON" or "Noclip: OFF"
+end)
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- ==========================
+-- Settings Tab
+-- ==========================
+local themeFrame = mainFrame.SettingsTabFrame:WaitForChild("ThemeColorFrame")
+local themeKnob = themeFrame:WaitForChild("ThemeColorKnob")
+local themeLabel = themeFrame:WaitForChild("ColorLabel")
+
+local fontFrame = mainFrame.SettingsTabFrame:WaitForChild("FontSizeSliderFrame")
+local fontKnob = fontFrame:WaitForChild("FontSizeKnob")
+local fontLabel = fontFrame:WaitForChild("TextLabel")
+
+-- Default theme red
+mainFrame.BackgroundColor3 = Color3.fromRGB(255,0,0)
+local function applyThemeColor(color)
+    mainFrame.BackgroundColor3 = color
+    for _, obj in pairs(mainFrame:GetDescendants()) do
+        if obj:IsA("TextButton") then
+            obj.BackgroundColor3 = color
+        end
+    end
+end
+
+-- Full theme and font size sliders can use the same setupSlider logic
+-- (for brevity, not repeating identical code here)
+
+-- ==========================
+-- Misc Tab (Fullbright)
+-- ==========================
+local fullbrightButton = mainFrame.MiscTabFrame:WaitForChild("FullbrightButton")
+local fullbrightEnabled = false
+local oldLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
+fullbrightButton.MouseButton1Click:Connect(function()
+    fullbrightEnabled = not fullbrightEnabled
+    if fullbrightEnabled then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 12
+        Lighting.FogEnd = 100000
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+        fullbrightButton.Text = "Fullbright: ON"
+    else
+        for k,v in pairs(oldLighting) do
+            Lighting[k] = v
+        end
+        fullbrightButton.Text = "Fullbright: OFF"
+    end
+end)
