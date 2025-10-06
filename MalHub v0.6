@@ -1,0 +1,135 @@
+-- =========================
+-- DRAGGABLE TOGGLE BUTTON (Horizontal)
+-- =========================
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 180, 0, 40) -- horizontal rectangle
+toggleBtn.Position = UDim2.new(0.5, 0, 0.1, 0)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.Text = "Malevolent Hub"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.AutoButtonColor = true
+toggleBtn.TextScaled = true
+toggleBtn.Parent = gui
+
+local dragging = false
+toggleBtn.MouseButton1Down:Connect(function(input)
+    dragging = true
+    local offset = toggleBtn.Position - UDim2.new(0, input.Position.X, 0, input.Position.Y)
+    local conn
+    conn = UserInputService.InputChanged:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+            toggleBtn.Position = UDim2.new(0, inp.Position.X + offset.X.Offset, 0, inp.Position.Y + offset.Y.Offset)
+        end
+    end)
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+            conn:Disconnect()
+        end
+    end)
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+
+-- =========================
+-- MALEVOLENT HUB - SECTION 2
+-- PLAYER TAB + LIVE HEALTH + MISC TAB (Fullbright)
+-- =========================
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- RemoteEvents
+local AdminRemotes = ReplicatedStorage:WaitForChild("AdminRemotes")
+local TeleportToPlayer = AdminRemotes:WaitForChild("TeleportToPlayer")
+local Fullbright = AdminRemotes:WaitForChild("Fullbright")
+
+-- References
+local playerTab = tabFrames.Player
+local gallery = playerTab:WaitForChild("PlayerGallery")
+local template = gallery:WaitForChild("PlayerTemplate")
+local teleportButton = playerTab:WaitForChild("TeleportButton")
+local selectedPlayer = nil
+
+-- =========================
+-- PLAYER GALLERY ENTRIES
+-- =========================
+local function createPlayerEntry(player)
+    local entry = template:Clone()
+    entry.Visible = true
+    entry.Name = player.Name
+    entry.DisplayName.Text = player.DisplayName
+    entry.Username.Text = player.Name
+
+    local thumb = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+    entry.ProfilePic.Image = thumb
+
+    -- Select player
+    entry.MouseButton1Click:Connect(function()
+        selectedPlayer = player
+        for _, child in pairs(gallery:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.BackgroundColor3 = Color3.fromRGB(255,255,255)
+            end
+        end
+        entry.BackgroundColor3 = Color3.fromRGB(0,255,0)
+    end)
+
+    entry.Parent = gallery
+
+    -- Live health & distance update
+    RunService.RenderStepped:Connect(function()
+        if player.Character and player.Character:FindFirstChild("Humanoid") 
+           and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
+           and player.Character:FindFirstChild("HumanoidRootPart") then
+            entry.HealthLabel.Text = tostring(math.floor(player.Character.Humanoid.Health)).." HP"
+            entry.DistanceLabel.Text = tostring(math.floor((player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)).." studs"
+        end
+    end)
+end
+
+-- Refresh gallery
+local function refreshGallery()
+    gallery:ClearAllChildren()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            createPlayerEntry(p)
+        end
+    end
+end
+
+refreshGallery()
+Players.PlayerAdded:Connect(refreshGallery)
+Players.PlayerRemoving:Connect(refreshGallery)
+
+-- Teleport to selected player
+teleportButton.MouseButton1Click:Connect(function()
+    if selectedPlayer then
+        TeleportToPlayer:FireServer(selectedPlayer)
+    end
+end)
+
+-- =========================
+-- MISC TAB (Fullbright)
+-- =========================
+local miscTab = tabFrames.Misc
+local fullbrightButton = miscTab:WaitForChild("FullbrightButton")
+local fullbrightEnabled = false
+
+fullbrightButton.MouseButton1Click:Connect(function()
+    fullbrightEnabled = not fullbrightEnabled
+    if fullbrightEnabled then
+        Fullbright:FireServer(true)
+        fullbrightButton.Text = "Fullbright: ON"
+    else
+        Fullbright:FireServer(false)
+        fullbrightButton.Text = "Fullbright: OFF"
+    end
+end)
