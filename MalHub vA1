@@ -1,20 +1,21 @@
 -- ================================================
--- 🔴 MalHub Main GUI
+-- 🔴 MalHub Section 1: GUI Setup + Movement
 -- ================================================
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local players = game:GetService("Players")
 local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
 
--- GUI setup
+-- GUI Setup
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 screenGui.Name = "MalHub"
 screenGui.IgnoreGuiInset = true
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0,400,0,500)
-mainFrame.Position = UDim2.new(0.5,-200,0.5,-250)
+mainFrame.Position = UDim2.new(0.5,-200,0.5,-100) -- lowered GUI
 mainFrame.BackgroundColor3 = Color3.fromRGB(255,0,0)
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BorderSizePixel = 0
@@ -59,12 +60,16 @@ for i, name in pairs(tabNames) do
 	end)
 end
 
--- ========== Movement Tab ==========
+-- ===========================
+-- Movement Tab
+-- ===========================
 local moveTab = tabFrames["Movement"]
+local startY = 20
+
 -- Speed slider
 local speedSlider = Instance.new("TextLabel")
 speedSlider.Size = UDim2.new(1,-40,0,30)
-speedSlider.Position = UDim2.new(0,20,0,20)
+speedSlider.Position = UDim2.new(0,20,0,startY)
 speedSlider.Text = "Speed: 16"
 speedSlider.TextColor3 = Color3.fromRGB(255,255,255)
 speedSlider.BackgroundTransparency = 0.5
@@ -78,39 +83,39 @@ local function updateSpeedLabel()
 	character:FindFirstChildOfClass("Humanoid").WalkSpeed = speedValue
 end
 
--- + and - buttons for speed
+-- Speed +/-
 local speedMinus = Instance.new("TextButton")
 speedMinus.Size = UDim2.new(0,30,0,30)
-speedMinus.Position = UDim2.new(0,10,0,20)
+speedMinus.Position = UDim2.new(0,10,0,startY)
 speedMinus.Text = "-"
 speedMinus.Font = Enum.Font.GothamBold
 speedMinus.TextColor3 = Color3.fromRGB(255,255,255)
 speedMinus.BackgroundColor3 = Color3.fromRGB(150,0,0)
 speedMinus.Parent = moveTab
 speedMinus.MouseButton1Click:Connect(function()
-	speedValue = math.max(0, speedValue - 2)
+	speedValue = math.max(0,speedValue-2)
 	updateSpeedLabel()
 end)
 
 local speedPlus = Instance.new("TextButton")
 speedPlus.Size = UDim2.new(0,30,0,30)
-speedPlus.Position = UDim2.new(1,-40,0,20)
+speedPlus.Position = UDim2.new(1,-40,0,startY)
 speedPlus.Text = "+"
 speedPlus.Font = Enum.Font.GothamBold
 speedPlus.TextColor3 = Color3.fromRGB(255,255,255)
 speedPlus.BackgroundColor3 = Color3.fromRGB(150,0,0)
 speedPlus.Parent = moveTab
 speedPlus.MouseButton1Click:Connect(function()
-	speedValue = speedValue + 2
+	speedValue = speedValue+2
 	updateSpeedLabel()
 end)
-
 updateSpeedLabel()
 
 -- Jump slider
+local jumpY = startY + 50
 local jumpSlider = Instance.new("TextLabel")
 jumpSlider.Size = UDim2.new(1,-40,0,30)
-jumpSlider.Position = UDim2.new(0,20,0,70)
+jumpSlider.Position = UDim2.new(0,20,0,jumpY)
 jumpSlider.Text = "JumpPower: 50"
 jumpSlider.TextColor3 = Color3.fromRGB(255,255,255)
 jumpSlider.BackgroundTransparency = 0.5
@@ -124,39 +129,39 @@ local function updateJumpLabel()
 	character:FindFirstChildOfClass("Humanoid").JumpPower = jumpValue
 end
 
--- + and - buttons for jump
+-- Jump +/-
 local jumpMinus = Instance.new("TextButton")
 jumpMinus.Size = UDim2.new(0,30,0,30)
-jumpMinus.Position = UDim2.new(0,10,0,70)
+jumpMinus.Position = UDim2.new(0,10,0,jumpY)
 jumpMinus.Text = "-"
 jumpMinus.Font = Enum.Font.GothamBold
 jumpMinus.TextColor3 = Color3.fromRGB(255,255,255)
 jumpMinus.BackgroundColor3 = Color3.fromRGB(150,0,0)
 jumpMinus.Parent = moveTab
 jumpMinus.MouseButton1Click:Connect(function()
-	jumpValue = math.max(0, jumpValue - 2)
+	jumpValue = math.max(0,jumpValue-2)
 	updateJumpLabel()
 end)
 
 local jumpPlus = Instance.new("TextButton")
 jumpPlus.Size = UDim2.new(0,30,0,30)
-jumpPlus.Position = UDim2.new(1,-40,0,70)
+jumpPlus.Position = UDim2.new(1,-40,0,jumpY)
 jumpPlus.Text = "+"
 jumpPlus.Font = Enum.Font.GothamBold
 jumpPlus.TextColor3 = Color3.fromRGB(255,255,255)
 jumpPlus.BackgroundColor3 = Color3.fromRGB(150,0,0)
 jumpPlus.Parent = moveTab
 jumpPlus.MouseButton1Click:Connect(function()
-	jumpValue = jumpValue + 2
+	jumpValue = jumpValue+2
 	updateJumpLabel()
 end)
-
 updateJumpLabel()
 
 -- Infinite Jump Toggle
+local infJumpY = jumpY + 50
 local infJumpBtn = Instance.new("TextButton")
 infJumpBtn.Size = UDim2.new(1,-40,0,30)
-infJumpBtn.Position = UDim2.new(0,20,0,120)
+infJumpBtn.Position = UDim2.new(0,20,0,infJumpY)
 infJumpBtn.Text = "Infinite Jump: OFF"
 infJumpBtn.Font = Enum.Font.GothamBold
 infJumpBtn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -169,17 +174,17 @@ infJumpBtn.MouseButton1Click:Connect(function()
 	infJumpBtn.Text = "Infinite Jump: "..(infJumpEnabled and "ON" or "OFF")
 end)
 
--- Implement infinite jump
-game:GetService("UserInputService").JumpRequest:Connect(function()
+userInputService.JumpRequest:Connect(function()
 	if infJumpEnabled then
 		character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 end)
 
 -- Noclip Toggle
+local noclipY = infJumpY + 50
 local noclipBtn = Instance.new("TextButton")
 noclipBtn.Size = UDim2.new(1,-40,0,30)
-noclipBtn.Position = UDim2.new(0,20,0,170)
+noclipBtn.Position = UDim2.new(0,20,0,noclipY)
 noclipBtn.Text = "Noclip: OFF"
 noclipBtn.Font = Enum.Font.GothamBold
 noclipBtn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -202,88 +207,84 @@ runService.Heartbeat:Connect(function()
 	end
 end)
 
--- ==========================
--- Remaining tabs (Fun/Misc, Players, Waypoints) should be implemented in Section 2
--- ==========================
-
 
 -- ================================================
--- 🔴 MalHub Section 2
--- Fun/Misc / Players / Waypoints / Advanced ESP / Visual Aura
+-- 🔴 MalHub Section 2: Fully Functional Tabs
 -- ================================================
 
--- 1) Fun/Misc Tab - ESP + Fling Aura Visual
--- (Advanced ESP System)
 local funTab = tabFrames["Fun/Misc"]
+local playersTab = tabFrames["Players"]
+local waypointsTab = tabFrames["Waypoints"]
+
+-- =====================
+-- 1) Fun/Misc: ESP Toggle
+-- =====================
 local espEnabled = false
 local espObjects = {}
-local updateRate = 0.1
+local startYFun = 20
 
-local function createESP(player)
-	if player == game.Players.LocalPlayer then return end
-	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-	if espObjects[player] then return end
-	local hrp = player.Character.HumanoidRootPart
-	local hum = player.Character:FindFirstChildOfClass("Humanoid")
+local function createESP(plr)
+	if plr == player then return end
+	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
+	if espObjects[plr] then return end
+
+	local hrp = plr.Character.HumanoidRootPart
+	local hum = plr.Character:FindFirstChildOfClass("Humanoid")
 	local highlight = Instance.new("Highlight")
-	highlight.FillTransparency=0.7
-	highlight.OutlineTransparency=0
-	highlight.OutlineColor=Color3.fromRGB(255,0,0)
-	if player.Team and player.Team.TeamColor then
-		highlight.FillColor=player.Team.TeamColor.Color
-	else
-		highlight.FillColor=Color3.fromRGB(0,255,0)
-	end
-	highlight.Parent=player.Character
+	highlight.FillTransparency = 0.7
+	highlight.OutlineTransparency = 0
+	highlight.OutlineColor = Color3.fromRGB(255,255,255)
+	highlight.FillColor = (plr.Team and plr.Team.TeamColor.Color) or Color3.fromRGB(0,255,0)
+	highlight.Parent = plr.Character
 
 	local billboard = Instance.new("BillboardGui")
-	billboard.Name="MalHubESP"
-	billboard.AlwaysOnTop=true
-	billboard.Size=UDim2.new(0,200,0,50)
-	billboard.Adornee=hrp
-	billboard.Parent=player.Character
+	billboard.Name = "MalHubESP"
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.new(0,200,0,50)
+	billboard.Adornee = hrp
+	billboard.Parent = plr.Character
 
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size=UDim2.new(1,0,0.5,0)
-	nameLabel.BackgroundTransparency=1
-	nameLabel.TextColor3=Color3.fromRGB(255,255,255)
-	nameLabel.TextScaled=true
-	nameLabel.Font=Enum.Font.GothamBold
-	nameLabel.Text=player.DisplayName
-	nameLabel.Parent=billboard
+	nameLabel.Size = UDim2.new(1,0,0.5,0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.Text = plr.DisplayName
+	nameLabel.Parent = billboard
 
 	local infoLabel = Instance.new("TextLabel")
-	infoLabel.Size=UDim2.new(1,0,0.5,0)
-	infoLabel.Position=UDim2.new(0,0,0.5,0)
-	infoLabel.BackgroundTransparency=1
-	infoLabel.TextColor3=Color3.fromRGB(200,200,200)
-	infoLabel.TextScaled=true
-	infoLabel.Font=Enum.Font.Gotham
-	infoLabel.Text=""
-	infoLabel.Parent=billboard
+	infoLabel.Size = UDim2.new(1,0,0.5,0)
+	infoLabel.Position = UDim2.new(0,0,0.5,0)
+	infoLabel.BackgroundTransparency = 1
+	infoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	infoLabel.TextScaled = true
+	infoLabel.Font = Enum.Font.Gotham
+	infoLabel.Text = ""
+	infoLabel.Parent = billboard
 
 	local healthBG = Instance.new("Frame")
-	healthBG.Size=UDim2.new(1,0,0,5)
-	healthBG.Position=UDim2.new(0,0,1,0)
-	healthBG.BackgroundColor3=Color3.fromRGB(50,0,0)
-	healthBG.BorderSizePixel=0
-	healthBG.Parent=billboard
+	healthBG.Size = UDim2.new(1,0,0,5)
+	healthBG.Position = UDim2.new(0,0,1,0)
+	healthBG.BackgroundColor3 = Color3.fromRGB(50,0,0)
+	healthBG.BorderSizePixel = 0
+	healthBG.Parent = billboard
 
 	local healthBar = Instance.new("Frame")
-	healthBar.Size=UDim2.new(1,0,1,0)
-	healthBar.BackgroundColor3=Color3.fromRGB(0,255,0)
-	healthBar.BorderSizePixel=0
-	healthBar.Parent=healthBG
+	healthBar.Size = UDim2.new(1,0,1,0)
+	healthBar.BackgroundColor3 = Color3.fromRGB(0,255,0)
+	healthBar.BorderSizePixel = 0
+	healthBar.Parent = healthBG
 
-	espObjects[player]={highlight=highlight,nameLabel=nameLabel,infoLabel=infoLabel,healthBar=healthBar,healthBG=healthBG,billboard=billboard}
+	espObjects[plr] = {highlight=highlight, nameLabel=nameLabel, infoLabel=infoLabel, healthBar=healthBar, healthBG=healthBG, billboard=billboard}
 end
 
-local function removeESP(player)
-	if espObjects[player] then
-		for _, obj in pairs(espObjects[player]) do
-			if typeof(obj)=="Instance" then obj:Destroy() end
+local function removeESP(plr)
+	if espObjects[plr] then
+		for _, obj in pairs(espObjects[plr]) do
+			if typeof(obj) == "Instance" then obj:Destroy() end
 		end
-		espObjects[player]=nil
+		espObjects[plr] = nil
 	end
 end
 
@@ -299,12 +300,12 @@ runService.Heartbeat:Connect(function()
 				local dist = math.floor((hrp.Position - character.HumanoidRootPart.Position).Magnitude)
 				local esp = espObjects[plr]
 				if esp then
-					esp.infoLabel.Text="Dist: "..dist.." | HP: "..math.floor(hum.Health)
-					esp.healthBar.Size=UDim2.new(hum.Health/hum.MaxHealth,0,1,0)
+					esp.infoLabel.Text = "Dist:"..dist.." | HP:"..math.floor(hum.Health)
+					esp.healthBar.Size = UDim2.new(hum.Health/hum.MaxHealth,0,1,0)
 					if plr.Team and plr.Team.TeamColor then
-						esp.highlight.FillColor=plr.Team.TeamColor.Color
+						esp.highlight.FillColor = plr.Team.TeamColor.Color
 					else
-						esp.highlight.FillColor=Color3.fromRGB(0,255,0)
+						esp.highlight.FillColor = Color3.fromRGB(0,255,0)
 					end
 				end
 			else
@@ -318,148 +319,13 @@ players.PlayerRemoving:Connect(removeESP)
 
 -- ESP Toggle Button
 local espBtn = Instance.new("TextButton")
-espBtn.Size=UDim2.new(1,-40,0,30)
-espBtn.Position=UDim2.new(0,20,0,20)
-espBtn.Text="Toggle ESP"
-espBtn.Font=Enum.Font.GothamBold
-espBtn.TextColor3=Color3.fromRGB(255,255,255)
-espBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-espBtn.Parent=funTab
-
-espBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	if espEnabled then espBtn.Text="ESP: ON" else espBtn.Text="ESP: OFF" end
-	if not espEnabled then
-		for plr,_ in pairs(espObjects) do removeESP(plr) end
-	end
-end)
-
--- ==========================
--- Players tab, Waypoints, and Fling Visual can be implemented using similar patterns
--- ==========================
-
-
--- ================================================
--- 🔴 MalHub Section 2 Complete
--- ================================================
-
-local funTab = tabFrames["Fun/Misc"]
-local playersTab = tabFrames["Players"]
-local waypointsTab = tabFrames["Waypoints"]
-
--- =====================
--- 1) Fun/Misc: ESP + Fling Visual
--- =====================
-local espEnabled = false
-local espObjects = {}
-local updateRate = 0.1
-
-local function createESP(plr)
-	if plr == player then return end
-	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
-	if espObjects[plr] then return end
-	local hrp = plr.Character.HumanoidRootPart
-	local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-	local highlight = Instance.new("Highlight")
-	highlight.FillTransparency=0.7
-	highlight.OutlineTransparency=0
-	highlight.OutlineColor=Color3.fromRGB(255,0,0)
-	if plr.Team and plr.Team.TeamColor then
-		highlight.FillColor = plr.Team.TeamColor.Color
-	else
-		highlight.FillColor = Color3.fromRGB(0,255,0)
-	end
-	highlight.Parent=plr.Character
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name="MalHubESP"
-	billboard.AlwaysOnTop=true
-	billboard.Size=UDim2.new(0,200,0,50)
-	billboard.Adornee=hrp
-	billboard.Parent=plr.Character
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size=UDim2.new(1,0,0.5,0)
-	nameLabel.BackgroundTransparency=1
-	nameLabel.TextColor3=Color3.fromRGB(255,255,255)
-	nameLabel.TextScaled=true
-	nameLabel.Font=Enum.Font.GothamBold
-	nameLabel.Text=plr.DisplayName
-	nameLabel.Parent=billboard
-
-	local infoLabel = Instance.new("TextLabel")
-	infoLabel.Size=UDim2.new(1,0,0.5,0)
-	infoLabel.Position=UDim2.new(0,0,0.5,0)
-	infoLabel.BackgroundTransparency=1
-	infoLabel.TextColor3=Color3.fromRGB(200,200,200)
-	infoLabel.TextScaled=true
-	infoLabel.Font=Enum.Font.Gotham
-	infoLabel.Text=""
-	infoLabel.Parent=billboard
-
-	local healthBG = Instance.new("Frame")
-	healthBG.Size=UDim2.new(1,0,0,5)
-	healthBG.Position=UDim2.new(0,0,1,0)
-	healthBG.BackgroundColor3=Color3.fromRGB(50,0,0)
-	healthBG.BorderSizePixel=0
-	healthBG.Parent=billboard
-
-	local healthBar = Instance.new("Frame")
-	healthBar.Size=UDim2.new(1,0,1,0)
-	healthBar.BackgroundColor3=Color3.fromRGB(0,255,0)
-	healthBar.BorderSizePixel=0
-	healthBar.Parent=healthBG
-
-	espObjects[plr] = {highlight=highlight,nameLabel=nameLabel,infoLabel=infoLabel,healthBar=healthBar,healthBG=healthBG,billboard=billboard}
-end
-
-local function removeESP(plr)
-	if espObjects[plr] then
-		for _, obj in pairs(espObjects[plr]) do
-			if typeof(obj)=="Instance" then obj:Destroy() end
-		end
-		espObjects[plr]=nil
-	end
-end
-
-runService.Heartbeat:Connect(function()
-	if not espEnabled then return end
-	for _, plr in pairs(players:GetPlayers()) do
-		if plr ~= player then
-			if not espObjects[plr] then createESP(plr) end
-			local char = plr.Character
-			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") then
-				local hrp = char.HumanoidRootPart
-				local hum = char:FindFirstChildOfClass("Humanoid")
-				local dist = math.floor((hrp.Position - character.HumanoidRootPart.Position).Magnitude)
-				local esp = espObjects[plr]
-				if esp then
-					esp.infoLabel.Text="Dist:"..dist.." | HP:"..math.floor(hum.Health)
-					esp.healthBar.Size=UDim2.new(hum.Health/hum.MaxHealth,0,1,0)
-					if plr.Team and plr.Team.TeamColor then
-						esp.highlight.FillColor=plr.Team.TeamColor.Color
-					else
-						esp.highlight.FillColor=Color3.fromRGB(0,255,0)
-					end
-				end
-			else
-				removeESP(plr)
-			end
-		end
-	end
-end)
-
-players.PlayerRemoving:Connect(removeESP)
-
--- ESP Toggle
-local espBtn = Instance.new("TextButton")
-espBtn.Size=UDim2.new(1,-40,0,30)
-espBtn.Position=UDim2.new(0,20,0,20)
-espBtn.Text="Toggle ESP"
-espBtn.Font=Enum.Font.GothamBold
-espBtn.TextColor3=Color3.fromRGB(255,255,255)
-espBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-espBtn.Parent=funTab
+espBtn.Size = UDim2.new(1,-40,0,30)
+espBtn.Position = UDim2.new(0,20,0,startYFun)
+espBtn.Text = "Toggle ESP"
+espBtn.Font = Enum.Font.GothamBold
+espBtn.TextColor3 = Color3.fromRGB(255,255,255)
+espBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+espBtn.Parent = funTab
 
 espBtn.MouseButton1Click:Connect(function()
 	espEnabled = not espEnabled
@@ -472,28 +338,25 @@ end)
 -- =====================
 -- 2) Players Tab
 -- =====================
-local whitelist = {}
-local blacklist = {}
-
+local startYPlayers = 20
 local playerNameBox = Instance.new("TextBox")
-playerNameBox.Size=UDim2.new(1,-40,0,30)
-playerNameBox.Position=UDim2.new(0,20,0,20)
-playerNameBox.PlaceholderText="Player Name"
-playerNameBox.TextColor3=Color3.fromRGB(255,255,255)
-playerNameBox.BackgroundColor3=Color3.fromRGB(150,0,0)
-playerNameBox.BackgroundTransparency=0.5
-playerNameBox.Font=Enum.Font.Gotham
-playerNameBox.Parent=playersTab
+playerNameBox.Size = UDim2.new(1,-40,0,30)
+playerNameBox.Position = UDim2.new(0,20,0,startYPlayers)
+playerNameBox.PlaceholderText = "Player Name"
+playerNameBox.TextColor3 = Color3.fromRGB(255,255,255)
+playerNameBox.BackgroundColor3 = Color3.fromRGB(150,0,0)
+playerNameBox.BackgroundTransparency = 0.5
+playerNameBox.Font = Enum.Font.Gotham
+playerNameBox.Parent = playersTab
 
--- ESP target toggle
 local targetESPBtn = Instance.new("TextButton")
-targetESPBtn.Size=UDim2.new(1,-40,0,30)
-targetESPBtn.Position=UDim2.new(0,20,0,60)
-targetESPBtn.Text="Toggle Player ESP"
-targetESPBtn.Font=Enum.Font.GothamBold
-targetESPBtn.TextColor3=Color3.fromRGB(255,255,255)
-targetESPBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-targetESPBtn.Parent=playersTab
+targetESPBtn.Size = UDim2.new(1,-40,0,30)
+targetESPBtn.Position = UDim2.new(0,20,0,startYPlayers+50)
+targetESPBtn.Text = "Toggle Player ESP"
+targetESPBtn.Font = Enum.Font.GothamBold
+targetESPBtn.TextColor3 = Color3.fromRGB(255,255,255)
+targetESPBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+targetESPBtn.Parent = playersTab
 
 local specificESPEnabled = false
 local targetESPPlayer = nil
@@ -505,23 +368,24 @@ targetESPBtn.MouseButton1Click:Connect(function()
 		specificESPEnabled = not specificESPEnabled
 		if specificESPEnabled then
 			createESP(targetESPPlayer)
-			targetESPBtn.Text="Player ESP: ON"
+			targetESPBtn.Text = "Player ESP: ON"
 		else
 			removeESP(targetESPPlayer)
-			targetESPBtn.Text="Player ESP: OFF"
+			targetESPBtn.Text = "Player ESP: OFF"
 		end
 	end
 end)
 
--- Whitelist button
+-- Whitelist for fling aura
+local whitelist = {}
 local whitelistBtn = Instance.new("TextButton")
-whitelistBtn.Size=UDim2.new(1,-40,0,30)
-whitelistBtn.Position=UDim2.new(0,20,0,100)
-whitelistBtn.Text="Whitelist Player"
-whitelistBtn.Font=Enum.Font.GothamBold
-whitelistBtn.TextColor3=Color3.fromRGB(255,255,255)
-whitelistBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-whitelistBtn.Parent=playersTab
+whitelistBtn.Size = UDim2.new(1,-40,0,30)
+whitelistBtn.Position = UDim2.new(0,20,0,startYPlayers+100)
+whitelistBtn.Text = "Whitelist Player"
+whitelistBtn.Font = Enum.Font.GothamBold
+whitelistBtn.TextColor3 = Color3.fromRGB(255,255,255)
+whitelistBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+whitelistBtn.Parent = playersTab
 
 whitelistBtn.MouseButton1Click:Connect(function()
 	local name = playerNameBox.Text
@@ -534,65 +398,147 @@ end)
 -- =====================
 -- 3) Waypoints Tab
 -- =====================
+local startYWaypoints = 20
 local waypointCount = 0
 local maxWaypoints = 10
 local waypoints = {}
 
 local createWPBtn = Instance.new("TextButton")
-createWPBtn.Size=UDim2.new(1,-40,0,30)
-createWPBtn.Position=UDim2.new(0,20,0,20)
-createWPBtn.Text="Create Checkpoint"
-createWPBtn.Font=Enum.Font.GothamBold
-createWPBtn.TextColor3=Color3.fromRGB(255,255,255)
-createWPBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-createWPBtn.Parent=waypointsTab
+createWPBtn.Size = UDim2.new(1,-40,0,30)
+createWPBtn.Position = UDim2.new(0,20,0,startYWaypoints)
+createWPBtn.Text = "Create Checkpoint"
+createWPBtn.Font = Enum.Font.GothamBold
+createWPBtn.TextColor3 = Color3.fromRGB(255,255,255)
+createWPBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+createWPBtn.Parent = waypointsTab
 
 createWPBtn.MouseButton1Click:Connect(function()
 	if waypointCount >= maxWaypoints then return end
-	waypointCount+=1
+	waypointCount += 1
 	local wpName = "CP-"..waypointCount
 	local part = Instance.new("Part")
-	part.Size=Vector3.new(2,2,2)
-	part.Anchored=true
-	part.Shape=Enum.PartType.Ball
-	part.Material=Enum.Material.Neon
-	part.Color=Color3.fromRGB(255,0,0)
-	part.CFrame=character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
-	part.Parent=workspace
+	part.Size = Vector3.new(2,2,2)
+	part.Anchored = true
+	part.Shape = Enum.PartType.Ball
+	part.Material = Enum.Material.Neon
+	part.Color = Color3.fromRGB(255,0,0)
+	part.CFrame = character.HumanoidRootPart.CFrame + Vector3.new(0,5,0)
+	part.Parent = workspace
 	waypoints[wpName] = part
 
 	-- Teleport Button
 	local tpBtn = Instance.new("TextButton")
-	tpBtn.Size=UDim2.new(1,-40,0,30)
-	tpBtn.Position=UDim2.new(0,20,0,20+40*waypointCount)
-	tpBtn.Text="Teleport "..wpName
-	tpBtn.Font=Enum.Font.GothamBold
-	tpBtn.TextColor3=Color3.fromRGB(255,255,255)
-	tpBtn.BackgroundColor3=Color3.fromRGB(255,0,0)
-	tpBtn.Parent=waypointsTab
+	tpBtn.Size = UDim2.new(1,-40,0,30)
+	tpBtn.Position = UDim2.new(0,20,0,startYWaypoints + 40*waypointCount)
+	tpBtn.Text = "Teleport "..wpName
+	tpBtn.Font = Enum.Font.GothamBold
+	tpBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	tpBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+	tpBtn.Parent = waypointsTab
 	tpBtn.MouseButton1Click:Connect(function()
 		character.HumanoidRootPart.CFrame = part.CFrame
 	end)
 
 	-- Delete Button
 	local delBtn = Instance.new("TextButton")
-	delBtn.Size=UDim2.new(1,-40,0,30)
-	delBtn.Position=UDim2.new(0,20,0,20+40*(waypointCount+10))
-	delBtn.Text="Delete "..wpName
-	delBtn.Font=Enum.Font.GothamBold
-	delBtn.TextColor3=Color3.fromRGB(255,255,255)
-	delBtn.BackgroundColor3=Color3.fromRGB(150,0,0)
-	delBtn.Parent=waypointsTab
+	delBtn.Size = UDim2.new(1,-40,0,30)
+	delBtn.Position = UDim2.new(0,20,0,startYWaypoints + 40*(waypointCount+10))
+	delBtn.Text = "Delete "..wpName
+	delBtn.Font = Enum.Font.GothamBold
+	delBtn.TextColor3 = Color3.fromRGB(255,255,255)
+	delBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+	delBtn.Parent = waypointsTab
 	delBtn.MouseButton1Click:Connect(function()
 		part:Destroy()
 		tpBtn:Destroy()
 		delBtn:Destroy()
-		waypoints[wpName]=nil
+		waypoints[wpName] = nil
 	end)
 end)
 
+
+-- ================================================
+-- 🔴 MalHub External Fling Aura Toggle
+-- ================================================
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local runService = game:GetService("RunService")
+local players = game:GetService("Players")
+
+-- Create the external GUI
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "MalHubFlingAuraGUI"
+
+local dragBtn = Instance.new("TextButton")
+dragBtn.Size = UDim2.new(0,120,0,40)
+dragBtn.Position = UDim2.new(0.5,-60,0.1,0)
+dragBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+dragBtn.BackgroundTransparency = 0.5
+dragBtn.TextColor3 = Color3.fromRGB(255,255,255)
+dragBtn.Font = Enum.Font.GothamBold
+dragBtn.Text = "Fling Aura: OFF"
+dragBtn.Parent = screenGui
+
+-- Draggable logic
+local dragging = false
+local dragInput, dragStart, startPos
+
+dragBtn.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = dragBtn.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+dragBtn.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+runService.RenderStepped:Connect(function()
+	if dragging and dragInput then
+		local delta = dragInput.Position - dragStart
+		dragBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
+end)
+
 -- =====================
--- 4) Visual Aura (Optional)
+-- Fling Aura Logic
 -- =====================
--- Copy your previous Visual Aura code here if desired, including:
--- Draggable toggle button, pulsing, rainbow/team colors, adjustable size slider
+local flingEnabled = false
+dragBtn.MouseButton1Click:Connect(function()
+	flingEnabled = not flingEnabled
+	dragBtn.Text = "Fling Aura: "..(flingEnabled and "ON" or "OFF")
+end)
+
+local flingRadius = 10 -- studs around the player
+local flingForce = 100 -- velocity applied
+
+runService.Heartbeat:Connect(function()
+	if not flingEnabled then return end
+	for _, plr in pairs(players:GetPlayers()) do
+		if plr ~= player then
+			if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp = plr.Character.HumanoidRootPart
+				local dist = (hrp.Position - character.HumanoidRootPart.Position).Magnitude
+				if dist <= flingRadius then
+					local bodyVel = Instance.new("BodyVelocity")
+					bodyVel.MaxForce = Vector3.new(1e5,1e5,1e5)
+					bodyVel.Velocity = (hrp.Position - character.HumanoidRootPart.Position).unit * flingForce
+					bodyVel.P = 1e5
+					bodyVel.Parent = hrp
+					game.Debris:AddItem(bodyVel,0.1)
+				end
+			end
+		end
+	end
+end)
