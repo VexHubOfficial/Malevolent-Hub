@@ -1,40 +1,3 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Create RemoteEvent if it doesn't exist
-local remote = ReplicatedStorage:FindFirstChild("MalHubServer") or Instance.new("RemoteEvent")
-remote.Name = "MalHubServer"
-remote.Parent = ReplicatedStorage
-
--- Handle client requests
-remote.OnServerEvent:Connect(function(player, action, targetPlayerName)
-    local targetPlayer = Players:FindFirstChild(targetPlayerName)
-    if not targetPlayer then return end
-
-    if action == "GetInventory" then
-        local inventory = {}
-        if targetPlayer:FindFirstChild("Backpack") then
-            for _, item in pairs(targetPlayer.Backpack:GetChildren()) do
-                table.insert(inventory, item.Name)
-            end
-        end
-        remote:FireClient(player, "InventoryResult", targetPlayerName, inventory)
-
-    elseif action == "TeleportToPlayer" then
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
-           and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(3,0,0)
-        end
-
-    elseif action == "TeleportPlayerToYou" then
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
-           and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            targetPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(3,0,0)
-        end
-    end
-end)
-
-
 -- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -59,7 +22,7 @@ screenGui.Name = "MalHub"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 
--- Main Panel
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 400, 0, 600)
 mainFrame.Position = UDim2.new(0.5, -200, 0.5, -300)
@@ -254,7 +217,6 @@ infiniteJumpToggle.MouseButton1Click:Connect(function()
     infiniteJumpToggle.Text = "Infinite Jump: "..(infiniteJump and "ON" or "OFF")
 end)
 
--- Infinite Jump Implementation
 UserInputService.JumpRequest:Connect(function()
     if infiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -278,7 +240,6 @@ noclipToggle.MouseButton1Click:Connect(function()
     noclipToggle.Text = "NoClip: "..(noclip and "ON" or "OFF")
 end)
 
--- NoClip Implementation
 RunService.Stepped:Connect(function()
     if noclip and player.Character then
         for _, part in pairs(player.Character:GetDescendants()) do
@@ -288,6 +249,7 @@ RunService.Stepped:Connect(function()
         end
     end
 end)
+
 
 -- Visuals Tab: ESP Toggle
 local espToggle = Instance.new("TextButton")
@@ -306,7 +268,6 @@ espToggle.MouseButton1Click:Connect(function()
     espToggle.Text = "ESP: "..(espEnabled and "ON" or "OFF")
 end)
 
--- ESP Implementation
 local espBoxes = {}
 RunService.RenderStepped:Connect(function()
     if espEnabled then
@@ -340,7 +301,47 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Players Tab: Whitelist/Blacklist, Inventory, Health Bar, Profile Picture
+-- Inventory Popup GUI
+local inventoryFrame = Instance.new("Frame")
+inventoryFrame.Size = UDim2.new(0, 250, 0, 300)
+inventoryFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
+inventoryFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+inventoryFrame.BorderSizePixel = 0
+inventoryFrame.Visible = false
+inventoryFrame.Parent = screenGui
+makeDraggable(inventoryFrame)
+
+local invTitle = Instance.new("TextLabel")
+invTitle.Size = UDim2.new(1,0,0,30)
+invTitle.Position = UDim2.new(0,0,0,0)
+invTitle.BackgroundTransparency = 1
+invTitle.Font = Enum.Font.SourceSansBold
+invTitle.TextSize = 18
+invTitle.TextColor3 = Color3.fromRGB(255,255,255)
+invTitle.Text = "Inventory"
+invTitle.Parent = inventoryFrame
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0,50,0,30)
+closeBtn.Position = UDim2.new(1,-55,0,0)
+closeBtn.Text = "X"
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 16
+closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+closeBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+closeBtn.Parent = inventoryFrame
+closeBtn.MouseButton1Click:Connect(function()
+    inventoryFrame.Visible = false
+end)
+
+local invList = Instance.new("ScrollingFrame")
+invList.Size = UDim2.new(1,-10,1,-40)
+invList.Position = UDim2.new(0,5,0,35)
+invList.BackgroundTransparency = 1
+invList.CanvasSize = UDim2.new(0,0,0,0)
+invList.Parent = inventoryFrame
+
+-- Players Tab
 local clearBtn = Instance.new("TextButton")
 clearBtn.Size = UDim2.new(0, 300, 0, 30)
 clearBtn.Position = UDim2.new(0, 10, 0, 0)
@@ -357,7 +358,6 @@ clearBtn.MouseButton1Click:Connect(function()
     refreshPlayers()
 end)
 
--- Function to refresh players list with health, profile pic, whitelist/blacklist
 function refreshPlayers()
     for _, child in pairs(playersFrame:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
@@ -378,7 +378,6 @@ function refreshPlayers()
         playerFrame.BackgroundTransparency = 0.8
         playerFrame.Parent = playersFrame
 
-        -- Profile picture
         local thumbId = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
         local img = Instance.new("ImageLabel")
         img.Size = UDim2.new(0,40,0,40)
@@ -387,7 +386,6 @@ function refreshPlayers()
         img.Image = thumbId
         img.Parent = playerFrame
 
-        -- Name label
         local nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(0,120,0,40)
         nameLabel.Position = UDim2.new(0,50,0,5)
@@ -398,7 +396,6 @@ function refreshPlayers()
         nameLabel.Text = p.Name
         nameLabel.Parent = playerFrame
 
-        -- Health bar background
         local healthBg = Instance.new("Frame")
         healthBg.Size = UDim2.new(0,200,0,10)
         healthBg.Position = UDim2.new(0,50,0,35)
@@ -414,7 +411,6 @@ function refreshPlayers()
 
         local healthLabel = Instance.new("TextLabel")
         healthLabel.Size = UDim2.new(1,0,1,0)
-        healthLabel.Position = UDim2.new(0,0,0,0)
         healthLabel.BackgroundTransparency = 1
         healthLabel.Font = Enum.Font.SourceSansBold
         healthLabel.TextSize = 12
@@ -422,7 +418,6 @@ function refreshPlayers()
         healthLabel.Text = "100 / 100"
         healthLabel.Parent = healthBg
 
-        -- Update health live
         RunService.RenderStepped:Connect(function()
             if p.Character and p.Character:FindFirstChild("Humanoid") then
                 local humanoid = p.Character.Humanoid
@@ -435,7 +430,6 @@ function refreshPlayers()
             end
         end)
 
-        -- Whitelist / Blacklist buttons
         local wlBtn = Instance.new("TextButton")
         wlBtn.Size = UDim2.new(0,90,1,0)
         wlBtn.Position = UDim2.new(0,130,0,0)
@@ -462,12 +456,14 @@ function refreshPlayers()
             refreshPlayers()
         end)
 
-        -- Inventory / teleport
+        -- Inventory on left click
         playerFrame.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                serverRemote:FireServer("GetInventory",p.Name)
+                serverRemote:FireServer("GetInventory", p.Name)
+                inventoryFrame.Visible = true
+                invTitle.Text = p.Name.."'s Inventory"
             elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-                serverRemote:FireServer("TeleportToPlayer",p.Name)
+                serverRemote:FireServer("TeleportToPlayer", p.Name)
             end
         end)
 
@@ -481,8 +477,24 @@ refreshPlayers()
 -- Receive inventory from server
 serverRemote.OnClientEvent:Connect(function(action,targetName,items)
     if action=="InventoryResult" then
-        print(targetName.." inventory:", table.concat(items,", "))
-        -- Optionally, create GUI to show inventory
+        for _, child in pairs(invList:GetChildren()) do
+            if child:IsA("TextLabel") then child:Destroy() end
+        end
+        local y = 0
+                for _, itemName in pairs(items) do
+            local itemLabel = Instance.new("TextLabel")
+            itemLabel.Size = UDim2.new(1,0,0,25)
+            itemLabel.Position = UDim2.new(0,0,0,y)
+            itemLabel.BackgroundTransparency = 0.5
+            itemLabel.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            itemLabel.Font = Enum.Font.SourceSansBold
+            itemLabel.TextSize = 16
+            itemLabel.TextColor3 = Color3.fromRGB(255,255,255)
+            itemLabel.Text = itemName
+            itemLabel.Parent = invList
+            y = y + 30
+        end
+        invList.CanvasSize = UDim2.new(0,0,0,y)
     end
 end)
 
@@ -523,16 +535,58 @@ RunService.RenderStepped:Connect(function()
                 local trp = target.Character.HumanoidRootPart
                 local dist = (hrp.Position - trp.Position).Magnitude
 
+                -- Respect Whitelist/Blacklist
                 if flingWhitelist[target.Name] then continue end
                 if next(flingBlacklist) and not flingBlacklist[target.Name] then continue end
 
-                if getF                if getFlingAura() and dist < 10 then
+                if getFlingAura() and dist < 10 then
                     trp.Velocity = Vector3.new(0,50,0)
                 end
 
-                if getAutoFling() and (dist < 15 or flingBlacklist[target.Name]) then
+                if getAutoFling() and dist < 15 then
                     trp.Velocity = Vector3.new(0,70,0)
                 end
+            end
+        end
+    end
+end)
+
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- RemoteEvent
+local serverRemote = ReplicatedStorage:FindFirstChild("MalHubServer")
+if not serverRemote then
+    serverRemote = Instance.new("RemoteEvent")
+    serverRemote.Name = "MalHubServer"
+    serverRemote.Parent = ReplicatedStorage
+end
+
+-- Example inventory data (replace with your game’s actual inventory system)
+local playerInventories = {}
+
+Players.PlayerAdded:Connect(function(player)
+    playerInventories[player.UserId] = {"Sword","Potion","Shield"} -- Default example items
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    playerInventories[player.UserId] = nil
+end)
+
+-- Handle client requests
+serverRemote.OnServerEvent:Connect(function(player, action, targetName)
+    local targetPlayer = Players:FindFirstChild(targetName)
+    if action == "GetInventory" then
+        if targetPlayer then
+            local items = playerInventories[targetPlayer.UserId] or {}
+            serverRemote:FireClient(player, "InventoryResult", targetName, items)
+        end
+    elseif action == "TeleportToPlayer" then
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(3,0,0)
             end
         end
     end
