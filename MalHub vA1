@@ -25,11 +25,12 @@ toggleButton.Active = true
 toggleButton.Draggable = true
 toggleButton.Parent = screenGui
 
--- Main Panel
+-- Main Panel (50% transparent)
 local panel = Instance.new("Frame")
 panel.Size = UDim2.new(0,350,0,350)
 panel.Position = UDim2.new(0,20,0,70)
 panel.BackgroundColor3 = Color3.fromRGB(40,10,10)
+panel.BackgroundTransparency = 0.5
 panel.BorderSizePixel = 0
 panel.Visible = false
 panel.Parent = screenGui
@@ -116,41 +117,59 @@ local function createSlider(parent,labelText,min,max,default,callback,posY)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local relativeX = math.clamp(input.Position.X - sliderFrame.AbsolutePosition.X,0,sliderFrame.AbsoluteSize.X)
             local value = min + (relativeX/sliderFrame.AbsoluteSize.X)*(max-min)
+            value = math.floor(value/5)*5 -- round to nearest 5
             sliderFill.Size = UDim2.new((value-min)/(max-min),0,1,0)
-            label.Text = labelText..": "..math.floor(value)
+            label.Text = labelText..": "..value
             callback(value)
         end
     end)
+
+    -- + and - buttons
+    local minusBtn = Instance.new("TextButton")
+    minusBtn.Size = UDim2.new(0,25,0,20)
+    minusBtn.Position = UDim2.new(0,230,0,posY+30)
+    minusBtn.Text = "-"
+    minusBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    minusBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    minusBtn.Font = Enum.Font.GothamBold
+    minusBtn.Parent = parent
+    minusBtn.MouseButton1Click:Connect(function()
+        default = math.max(min, default-5)
+        sliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
+        label.Text = labelText..": "..default
+        callback(default)
+    end)
+
+    local plusBtn = Instance.new("TextButton")
+    plusBtn.Size = UDim2.new(0,25,0,20)
+    plusBtn.Position = UDim2.new(0,260,0,posY+30)
+    plusBtn.Text = "+"
+    plusBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    plusBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    plusBtn.Font = Enum.Font.GothamBold
+    plusBtn.Parent = parent
+    plusBtn.MouseButton1Click:Connect(function()
+        default = math.min(max, default+5)
+        sliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
+        label.Text = labelText..": "..default
+        callback(default)
+    end)
 end
 
-local function createToggle(parent,labelText,default,callback,posY)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0,150,0,30)
-    label.Position = UDim2.new(0,20,0,posY)
-    label.Text = labelText
-    label.Font = Enum.Font.Gotham
-    label.TextColor3 = Color3.fromRGB(255,255,255)
-    label.BackgroundTransparency = 1
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = parent
+local function createToggleButton(parent,labelText,default,callback,posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,150,0,30)
+    btn.Position = UDim2.new(0,20,0,posY)
+    btn.Text = labelText
+    btn.BackgroundColor3 = default and Color3.fromRGB(255,0,0) or Color3.fromRGB(120,0,0)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.GothamBold
+    btn.Parent = parent
 
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(0,40,0,20)
-    toggleFrame.Position = UDim2.new(0,180,0,posY+5)
-    toggleFrame.BackgroundColor3 = Color3.fromRGB(120,0,0)
-    toggleFrame.Parent = parent
-
-    local toggleFill = Instance.new("Frame")
-    toggleFill.Size = UDim2.new(default and 1 or 0,0,1,0)
-    toggleFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
-    toggleFill.Parent = toggleFrame
-
-    toggleFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            default = not default
-            toggleFill.Size = UDim2.new(default and 1 or 0,0,1,0)
-            callback(default)
-        end
+    btn.MouseButton1Click:Connect(function()
+        default = not default
+        btn.BackgroundColor3 = default and Color3.fromRGB(255,0,0) or Color3.fromRGB(120,0,0)
+        callback(default)
     end)
 end
 
@@ -158,96 +177,49 @@ end
 local playerTab = tabFrames["Player"]
 local sliderY = 20
 
--- Movement sliders
 createSlider(playerTab,"Speed",16,100,humanoid.WalkSpeed,function(val) humanoid.WalkSpeed=val end,sliderY)
 createSlider(playerTab,"JumpPower",50,200,humanoid.JumpPower,function(val) humanoid.JumpPower=val end,sliderY+70)
 
--- Infinite Jump
+-- Infinite Jump & Noclip (togglable)
 local infiniteJump = false
-createToggle(playerTab,"Infinite Jump",false,function(state) infiniteJump=state end,sliderY+140)
+createToggleButton(playerTab,"Infinite Jump",false,function(state) infiniteJump=state end,sliderY+140)
 
--- Noclip
 local noclipEnabled = false
-createToggle(playerTab,"Noclip",false,function(state) noclipEnabled=state end,sliderY+180)
+createToggleButton(playerTab,"Noclip",false,function(state) noclipEnabled=state end,sliderY+180)
 
--- Anti-Fling Whitelist (Section 2 will fill the logic)
+-- Anti-Fling Whitelist placeholder (filled in Section 2)
 local flingWhitelist = {}
+
+-- Infinite Jump logic
+uis.JumpRequest:Connect(function()
+    if infiniteJump then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+end)
+
+-- Noclip logic
+runService.Stepped:Connect(function()
+    if noclipEnabled and character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide=false end
+        end
+    elseif character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide=true end
+        end
+    end
+end)
 
 -- ================= SETTINGS TAB =================
 local settingsTab = tabFrames["Settings"]
 local toggleY2 = 20
 
--- Anti-Fling
 local antiFlingEnabled = false
-createToggle(settingsTab,"Anti-Fling",false,function(state) antiFlingEnabled=state end,toggleY2)
+createToggleButton(settingsTab,"Anti-Fling",false,function(state) antiFlingEnabled=state end,toggleY2)
 
--- Fling Aura
 local flingAuraEnabled = false
-createToggle(settingsTab,"Fling Aura",false,function(state) flingAuraEnabled=state end,toggleY2+50)
+createToggleButton(settingsTab,"Fling Aura",false,function(state) flingAuraEnabled=state end,toggleY2+50)
 
--- ESP
 local espEnabled = false
-createToggle(settingsTab,"ESP / Highlight",false,function(state) espEnabled=state end,toggleY2+100)
+createToggleButton(settingsTab,"ESP / Highlight",false,function(state) espEnabled=state end,toggleY2+100)
 
 -- Toggle panel visibility
 toggleButton.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
-
-
--- ==================== SECTION 2 ====================
-
--- PLAYER TOOLS TAB
-local playerToolsTab = Instance.new("Frame")
-playerToolsTab.Size = UDim2.new(1,-100,1,0)
-playerToolsTab.Position = UDim2.new(0,100,0,0)
-playerToolsTab.BackgroundTransparency = 1
-playerToolsTab.Visible = false
-playerToolsTab.Parent = panel
-tabFrames["Player Tools"] = playerToolsTab
-
--- Tab button
-local button3 = Instance.new("TextButton")
-button3.Size = UDim2.new(1,0,0,50)
-button3.Position = UDim2.new(0,0,0,100)
-button3.Text = "Player Tools"
-button3.Font = Enum.Font.GothamBold
-button3.TextColor3 = Color3.fromRGB(255,255,255)
-button3.BackgroundColor3 = Color3.fromRGB(150,0,0)
-button3.Parent = tabBar
-
-local corner3 = Instance.new("UICorner")
-corner3.CornerRadius = UDim.new(0,5)
-corner3.Parent = button3
-
-button3.MouseButton1Click:Connect(function()
-    for _, f in pairs(tabFrames) do f.Visible=false end
-    playerToolsTab.Visible = true
-end)
-
--- Player Name Box
-local playerNameBox = Instance.new("TextBox")
-playerNameBox.Size = UDim2.new(0,200,0,30)
-playerNameBox.Position = UDim2.new(0,20,0,20)
-playerNameBox.PlaceholderText = "Player Name"
-playerNameBox.ClearTextOnFocus=false
-playerNameBox.Text=""
-playerNameBox.Parent=playerToolsTab
-
--- Teleport Button
-local tpButton = Instance.new("TextButton")
-tpButton.Size = UDim2.new(0,100,0,30)
-tpButton.Position = UDim2.new(0,230,0,20)
-tpButton.Text="Teleport"
-tpButton.BackgroundColor3=Color3.fromRGB(255,0,0)
-tpButton.TextColor3=Color3.fromRGB(255,255,255)
-tpButton.Font=Enum.Font.GothamBold
-tpButton.Parent=playerToolsTab
-
-tpButton.MouseButton1Click:Connect(function()
-    local targetName = playerNameBox.Text
-    local targetPlayer = players:FindFirstChild(targetName)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        character:SetPrimaryPartCFrame(targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0))
-    end
-end)
-
--- ESP / Remove
