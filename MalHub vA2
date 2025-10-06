@@ -1,0 +1,539 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Create RemoteEvent if it doesn't exist
+local remote = ReplicatedStorage:FindFirstChild("MalHubServer") or Instance.new("RemoteEvent")
+remote.Name = "MalHubServer"
+remote.Parent = ReplicatedStorage
+
+-- Handle client requests
+remote.OnServerEvent:Connect(function(player, action, targetPlayerName)
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    if not targetPlayer then return end
+
+    if action == "GetInventory" then
+        local inventory = {}
+        if targetPlayer:FindFirstChild("Backpack") then
+            for _, item in pairs(targetPlayer.Backpack:GetChildren()) do
+                table.insert(inventory, item.Name)
+            end
+        end
+        remote:FireClient(player, "InventoryResult", targetPlayerName, inventory)
+
+    elseif action == "TeleportToPlayer" then
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
+           and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(3,0,0)
+        end
+
+    elseif action == "TeleportPlayerToYou" then
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") 
+           and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            targetPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(3,0,0)
+        end
+    end
+end)
+
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local serverRemote = ReplicatedStorage:WaitForChild("MalHubServer")
+
+-- Settings
+local defaultSpeed = 16
+local defaultJumpPower = 50
+local speed = defaultSpeed
+local jumpPower = defaultJumpPower
+local flingWhitelist = {}
+local flingBlacklist = {}
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MalHub"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+-- Main Panel
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 600)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -300)
+mainFrame.BackgroundColor3 = Color3.fromRGB(150,0,0)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+-- Draggable function
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, mousePos, framePos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            mousePos = input.Position
+            framePos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X,
+                                       framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+end
+makeDraggable(mainFrame)
+
+-- Toggle Button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 40)
+toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.Text = "MalHub"
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 18
+toggleBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Parent = screenGui
+makeDraggable(toggleBtn)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Speed & JumpPower Indicator
+local statLabel = Instance.new("TextLabel")
+statLabel.Size = UDim2.new(0, 180, 0, 40)
+statLabel.Position = UDim2.new(0, 150, 0, 20)
+statLabel.BackgroundTransparency = 1
+statLabel.Font = Enum.Font.SourceSansBold
+statLabel.TextSize = 16
+statLabel.TextColor3 = Color3.fromRGB(255,255,255)
+statLabel.Text = "Speed: "..speed.." | Jump: "..jumpPower
+statLabel.Parent = screenGui
+makeDraggable(statLabel)
+
+RunService.RenderStepped:Connect(function()
+    statLabel.Text = "Speed: "..speed.." | Jump: "..jumpPower
+    if speed > defaultSpeed then
+        statLabel.TextColor3 = Color3.fromRGB(0,255,0)
+    elseif speed < defaultSpeed then
+        statLabel.TextColor3 = Color3.fromRGB(255,0,0)
+    else
+        statLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    end
+end)
+
+-- Tabs: Movement, Visuals, Players, Fling
+local movementFrame = Instance.new("Frame")
+movementFrame.Size = UDim2.new(1,-20,0,200)
+movementFrame.Position = UDim2.new(0,10,0,70)
+movementFrame.BackgroundTransparency = 1
+movementFrame.Parent = mainFrame
+
+local visualsFrame = Instance.new("Frame")
+visualsFrame.Size = UDim2.new(1,-20,0,200)
+visualsFrame.Position = UDim2.new(0,10,0,70)
+visualsFrame.BackgroundTransparency = 1
+visualsFrame.Visible = false
+visualsFrame.Parent = mainFrame
+
+local playersFrame = Instance.new("ScrollingFrame")
+playersFrame.Size = UDim2.new(1,-20,0,300)
+playersFrame.Position = UDim2.new(0,10,0,280)
+playersFrame.BackgroundTransparency = 1
+playersFrame.Visible = false
+playersFrame.CanvasSize = UDim2.new(0,0,0,0)
+playersFrame.Parent = mainFrame
+
+local flingFrame = Instance.new("Frame")
+flingFrame.Size = UDim2.new(1,-20,0,200)
+flingFrame.Position = UDim2.new(0,10,0,590)
+flingFrame.BackgroundTransparency = 1
+flingFrame.Visible = false
+flingFrame.Parent = mainFrame
+
+-- Tab Buttons
+local function createTab(name, posY, frame)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 80, 0, 30)
+    btn.Position = UDim2.new(0, 20, 0, posY)
+    btn.Text = name
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundColor3 = Color3.fromRGB(120,0,0)
+    btn.Parent = mainFrame
+    btn.MouseButton1Click:Connect(function()
+        movementFrame.Visible = frame==movementFrame
+        visualsFrame.Visible = frame==visualsFrame
+        playersFrame.Visible = frame==playersFrame
+        flingFrame.Visible = frame==flingFrame
+    end)
+end
+
+createTab("Movement", 0, movementFrame)
+createTab("Visuals", 40, visualsFrame)
+createTab("Players", 80, playersFrame)
+createTab("Fling", 120, flingFrame)
+
+-- Movement Tab: Speed & JumpPower controls, InfiniteJump, NoClip
+local function createIncDec(name, yPos, minVal, maxVal)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 120, 0, 30)
+    label.Position = UDim2.new(0, 10, 0, yPos)
+    label.Text = name..": "..(name=="Speed" and speed or jumpPower)
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 16
+    label.BackgroundTransparency = 1
+    label.Parent = movementFrame
+
+    local incBtn = Instance.new("TextButton")
+    incBtn.Size = UDim2.new(0, 30, 0, 30)
+    incBtn.Position = UDim2.new(0,140,0,yPos)
+    incBtn.Text = "+"
+    incBtn.Font = Enum.Font.SourceSansBold
+    incBtn.TextSize = 18
+    incBtn.Parent = movementFrame
+
+    local decBtn = Instance.new("TextButton")
+    decBtn.Size = UDim2.new(0,30,0,30)
+    decBtn.Position = UDim2.new(0,180,0,yPos)
+    decBtn.Text = "-"
+    decBtn.Font = Enum.Font.SourceSansBold
+    decBtn.TextSize = 18
+    decBtn.Parent = movementFrame
+
+    incBtn.MouseButton1Click:Connect(function()
+        if name=="Speed" then speed = speed+2 else jumpPower = jumpPower+2 end
+        label.Text = name..": "..(name=="Speed" and speed or jumpPower)
+        if player.Character then
+            if name=="Speed" then player.Character.Humanoid.WalkSpeed=speed else player.Character.Humanoid.JumpPower=jumpPower end
+        end
+    end)
+    decBtn.MouseButton1Click:Connect(function()
+        if name=="Speed" then speed = math.max(minVal,speed-2) else jumpPower = math.max(minVal,jumpPower-2) end
+        label.Text = name..": "..(name=="Speed" and speed or jumpPower)
+        if player.Character then
+            if name=="Speed" then player.Character.Humanoid.WalkSpeed=speed else player.Character.Humanoid.JumpPower=jumpPower end
+        end
+    end)
+end
+
+createIncDec("Speed", 10, 0, 500)
+createIncDec("Jump", 50, 0, 500)
+
+-- InfiniteJump Toggle
+local infiniteJumpToggle = Instance.new("TextButton")
+infiniteJumpToggle.Size = UDim2.new(0,150,0,30)
+infiniteJumpToggle.Position = UDim2.new(0,10,0,90)
+infiniteJumpToggle.Text = "Infinite Jump: OFF"
+infiniteJumpToggle.Font = Enum.Font.SourceSansBold
+infiniteJumpToggle.TextSize = 16
+infiniteJumpToggle.TextColor3 = Color3.fromRGB(255,255,255)
+infiniteJumpToggle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+infiniteJumpToggle.Parent = movementFrame
+
+local infiniteJump = false
+infiniteJumpToggle.MouseButton1Click:Connect(function()
+    infiniteJump = not infiniteJump
+    infiniteJumpToggle.Text = "Infinite Jump: "..(infiniteJump and "ON" or "OFF")
+end)
+
+-- Infinite Jump Implementation
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJump and player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- NoClip Toggle
+local noclipToggle = Instance.new("TextButton")
+noclipToggle.Size = UDim2.new(0,150,0,30)
+noclipToggle.Position = UDim2.new(0,180,0,90)
+noclipToggle.Text = "NoClip: OFF"
+noclipToggle.Font = Enum.Font.SourceSansBold
+noclipToggle.TextSize = 16
+noclipToggle.TextColor3 = Color3.fromRGB(255,255,255)
+noclipToggle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+noclipToggle.Parent = movementFrame
+
+local noclip = false
+noclipToggle.MouseButton1Click:Connect(function()
+    noclip = not noclip
+    noclipToggle.Text = "NoClip: "..(noclip and "ON" or "OFF")
+end)
+
+-- NoClip Implementation
+RunService.Stepped:Connect(function()
+    if noclip and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Visuals Tab: ESP Toggle
+local espToggle = Instance.new("TextButton")
+espToggle.Size = UDim2.new(0,150,0,30)
+espToggle.Position = UDim2.new(0,10,0,10)
+espToggle.Text = "ESP: OFF"
+espToggle.Font = Enum.Font.SourceSansBold
+espToggle.TextSize = 16
+espToggle.TextColor3 = Color3.fromRGB(255,255,255)
+espToggle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+espToggle.Parent = visualsFrame
+
+local espEnabled = false
+espToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espToggle.Text = "ESP: "..(espEnabled and "ON" or "OFF")
+end)
+
+-- ESP Implementation
+local espBoxes = {}
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if not espBoxes[p.Name] then
+                    local box = Instance.new("BillboardGui")
+                    box.Name = "ESPBox"
+                    box.Size = UDim2.new(0,100,0,50)
+                    box.Adornee = p.Character.HumanoidRootPart
+                    box.AlwaysOnTop = true
+                    box.Parent = screenGui
+                    local label = Instance.new("TextLabel")
+                    label.Size = UDim2.new(1,0,1,0)
+                    label.BackgroundTransparency = 1
+                    label.TextColor3 = Color3.fromRGB(255,0,0)
+                    label.TextStrokeTransparency = 0
+                    label.Text = p.Name
+                    label.Font = Enum.Font.SourceSansBold
+                    label.TextScaled = true
+                    label.Parent = box
+                    espBoxes[p.Name] = box
+                end
+            end
+        end
+    else
+        for _, box in pairs(espBoxes) do
+            box:Destroy()
+        end
+        espBoxes = {}
+    end
+end)
+
+-- Players Tab: Whitelist/Blacklist, Inventory, Health Bar, Profile Picture
+local clearBtn = Instance.new("TextButton")
+clearBtn.Size = UDim2.new(0, 300, 0, 30)
+clearBtn.Position = UDim2.new(0, 10, 0, 0)
+clearBtn.Text = "Clear Whitelist/Blacklist"
+clearBtn.Font = Enum.Font.SourceSansBold
+clearBtn.TextSize = 16
+clearBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+clearBtn.TextColor3 = Color3.fromRGB(255,255,255)
+clearBtn.Parent = playersFrame
+
+clearBtn.MouseButton1Click:Connect(function()
+    flingWhitelist = {}
+    flingBlacklist = {}
+    refreshPlayers()
+end)
+
+-- Function to refresh players list with health, profile pic, whitelist/blacklist
+function refreshPlayers()
+    for _, child in pairs(playersFrame:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    local y = 40
+    for _, p in pairs(Players:GetPlayers()) do
+        local playerFrame = Instance.new("Frame")
+        playerFrame.Size = UDim2.new(0,320,0,50)
+        playerFrame.Position = UDim2.new(0,0,0,y)
+        if flingWhitelist[p.Name] then
+            playerFrame.BackgroundColor3 = Color3.fromRGB(0,150,0)
+        elseif flingBlacklist[p.Name] then
+            playerFrame.BackgroundColor3 = Color3.fromRGB(150,0,0)
+        else
+            playerFrame.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        end
+        playerFrame.BackgroundTransparency = 0.8
+        playerFrame.Parent = playersFrame
+
+        -- Profile picture
+        local thumbId = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0,40,0,40)
+        img.Position = UDim2.new(0,5,0,5)
+        img.BackgroundTransparency = 1
+        img.Image = thumbId
+        img.Parent = playerFrame
+
+        -- Name label
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(0,120,0,40)
+        nameLabel.Position = UDim2.new(0,50,0,5)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.TextSize = 18
+        nameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        nameLabel.Text = p.Name
+        nameLabel.Parent = playerFrame
+
+        -- Health bar background
+        local healthBg = Instance.new("Frame")
+        healthBg.Size = UDim2.new(0,200,0,10)
+        healthBg.Position = UDim2.new(0,50,0,35)
+        healthBg.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        healthBg.BorderSizePixel = 0
+        healthBg.Parent = playerFrame
+
+        local healthBar = Instance.new("Frame")
+        healthBar.Size = UDim2.new(1,0,1,0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(0,255,0)
+        healthBar.BorderSizePixel = 0
+        healthBar.Parent = healthBg
+
+        local healthLabel = Instance.new("TextLabel")
+        healthLabel.Size = UDim2.new(1,0,1,0)
+        healthLabel.Position = UDim2.new(0,0,0,0)
+        healthLabel.BackgroundTransparency = 1
+        healthLabel.Font = Enum.Font.SourceSansBold
+        healthLabel.TextSize = 12
+        healthLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        healthLabel.Text = "100 / 100"
+        healthLabel.Parent = healthBg
+
+        -- Update health live
+        RunService.RenderStepped:Connect(function()
+            if p.Character and p.Character:FindFirstChild("Humanoid") then
+                local humanoid = p.Character.Humanoid
+                local ratio = math.clamp(humanoid.Health/humanoid.MaxHealth,0,1)
+                healthBar.Size = UDim2.new(ratio,0,1,0)
+                healthLabel.Text = string.format("%d / %d", math.floor(humanoid.Health), math.floor(humanoid.MaxHealth))
+            else
+                healthBar.Size = UDim2.new(0,0,1,0)
+                healthLabel.Text = "0 / 0"
+            end
+        end)
+
+        -- Whitelist / Blacklist buttons
+        local wlBtn = Instance.new("TextButton")
+        wlBtn.Size = UDim2.new(0,90,1,0)
+        wlBtn.Position = UDim2.new(0,130,0,0)
+        wlBtn.Font = Enum.Font.SourceSansBold
+        wlBtn.TextSize = 14
+        wlBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        wlBtn.Text = (flingWhitelist[p.Name] and "Whitelisted" or "Whitelist")
+        wlBtn.Parent = playerFrame
+        wlBtn.MouseButton1Click:Connect(function()
+            if flingWhitelist[p.Name] then flingWhitelist[p.Name]=nil else flingWhitelist[p.Name]=true flingBlacklist[p.Name]=nil end
+            refreshPlayers()
+        end)
+
+        local blBtn = Instance.new("TextButton")
+        blBtn.Size = UDim2.new(0,90,1,0)
+        blBtn.Position = UDim2.new(0,230,0,0)
+        blBtn.Font = Enum.Font.SourceSansBold
+        blBtn.TextSize = 14
+        blBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        blBtn.Text = (flingBlacklist[p.Name] and "Blacklisted" or "Blacklist")
+        blBtn.Parent = playerFrame
+        blBtn.MouseButton1Click:Connect(function()
+            if flingBlacklist[p.Name] then flingBlacklist[p.Name]=nil else flingBlacklist[p.Name]=true flingWhitelist[p.Name]=nil end
+            refreshPlayers()
+        end)
+
+        -- Inventory / teleport
+        playerFrame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                serverRemote:FireServer("GetInventory",p.Name)
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+                serverRemote:FireServer("TeleportToPlayer",p.Name)
+            end
+        end)
+
+        y = y + 55
+    end
+    playersFrame.CanvasSize = UDim2.new(0,0,0,y)
+end
+
+refreshPlayers()
+
+-- Receive inventory from server
+serverRemote.OnClientEvent:Connect(function(action,targetName,items)
+    if action=="InventoryResult" then
+        print(targetName.." inventory:", table.concat(items,", "))
+        -- Optionally, create GUI to show inventory
+    end
+end)
+
+-- Fling Tab: Toggles
+local function createFlingToggle(name, x, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,150,0,30)
+    btn.Position = UDim2.new(0,x,0,y)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    btn.Text = name..": OFF"
+    btn.Parent = flingFrame
+    local state=false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = name..": "..(state and "ON" or "OFF")
+    end)
+    return btn, function() return state end
+end
+
+local flingAuraToggle, getFlingAura = createFlingToggle("Fling Aura",10,10)
+local antiFlingToggle, getAntiFling = createFlingToggle("Anti Fling",180,10)
+local autoFlingToggle, getAutoFling = createFlingToggle("Auto Fling",10,50)
+
+-- Fling Implementation
+RunService.RenderStepped:Connect(function()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        -- Anti Fling
+        if getAntiFling() then
+            hrp.Velocity = Vector3.new(0,hrp.Velocity.Y,0)
+        end
+        -- Fling Aura / Auto Fling
+        for _, target in pairs(Players:GetPlayers()) do
+            if target~=player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local trp = target.Character.HumanoidRootPart
+                local dist = (hrp.Position - trp.Position).Magnitude
+
+                if flingWhitelist[target.Name] then continue end
+                if next(flingBlacklist) and not flingBlacklist[target.Name] then continue end
+
+                if getF                if getFlingAura() and dist < 10 then
+                    trp.Velocity = Vector3.new(0,50,0)
+                end
+
+                if getAutoFling() and (dist < 15 or flingBlacklist[target.Name]) then
+                    trp.Velocity = Vector3.new(0,70,0)
+                end
+            end
+        end
+    end
+end)
