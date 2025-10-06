@@ -1,0 +1,403 @@
+-- =========================
+-- Malevolent Hub Client Script
+-- =========================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- RemoteEvents
+local AdminRemotes = ReplicatedStorage:WaitForChild("AdminRemotes")
+local TeleportToPlayer = AdminRemotes:WaitForChild("TeleportToPlayer")
+local Fullbright = AdminRemotes:WaitForChild("Fullbright")
+
+-- =========================
+-- GUI
+-- =========================
+local gui = Instance.new("ScreenGui")
+gui.Name = "MalevolentHubGUI"
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.ResetOnSpawn = false
+
+-- Draggable toggle button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0,120,0,40)
+toggleBtn.Position = UDim2.new(0.5,0,0.05,0)
+toggleBtn.AnchorPoint = Vector2.new(0.5,0)
+toggleBtn.Text = "MalHub"
+toggleBtn.TextColor3 = Color3.fromRGB(255,0,0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.AutoButtonColor = true
+toggleBtn.TextScaled = true
+toggleBtn.Parent = gui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,600,0,400)
+mainFrame.Position = UDim2.new(0.5,0,0.2,0)
+mainFrame.AnchorPoint = Vector2.new(0.5,0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(255,0,0)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.Parent = gui
+
+toggleBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Draggable toggle functionality
+local dragging = false
+local dragOffset
+toggleBtn.MouseButton1Down:Connect(function(input)
+    dragging = true
+    dragOffset = toggleBtn.Position - UDim2.new(0, input.Position.X, 0, input.Position.Y)
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        toggleBtn.Position = UDim2.new(0, input.Position.X + dragOffset.X.Offset, 0, input.Position.Y + dragOffset.Y.Offset)
+    end
+end)
+
+-- =========================
+-- TAB SETUP
+-- =========================
+local tabNames = {"Movement","Visuals","Settings","Players","Misc"}
+local tabButtons = {}
+local tabFrames = {}
+
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1,0,0,40)
+tabBar.Position = UDim2.new(0,0,0,0)
+tabBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
+tabBar.Parent = mainFrame
+
+for i, tabName in ipairs(tabNames) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,120,1,0)
+    btn.Position = UDim2.new(0,(i-1)*120,0,0)
+    btn.Text = tabName
+    btn.TextScaled = true
+    btn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Parent = tabBar
+    tabButtons[tabName] = btn
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1,0,1,-40)
+    frame.Position = UDim2.new(0,0,0,40)
+    frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    frame.Visible = false
+    frame.Parent = mainFrame
+    tabFrames[tabName] = frame
+
+    btn.MouseButton1Click:Connect(function()
+        for _, f in pairs(tabFrames) do f.Visible = false end
+        frame.Visible = true
+    end)
+end
+
+tabFrames["Movement"].Visible = true
+
+-- =========================
+-- MOVEMENT TAB
+-- =========================
+local movementTab = tabFrames["Movement"]
+
+-- Sliders: WalkSpeed & JumpPower
+local function createSlider(parent,name,min,max,default,callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0,250,0,50)
+    frame.Position = UDim2.new(0,10,0,#parent:GetChildren()*55,0)
+    frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    frame.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0,100,1,0)
+    label.Position = UDim2.new(0,0,0,0)
+    label.Text = name.." "..tostring(default)
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.BackgroundTransparency = 1
+    label.Parent = frame
+
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0,150,0,10)
+    slider.Position = UDim2.new(0,110,0,20)
+    slider.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    slider.Parent = frame
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0,20,0,20)
+    knob.Position = UDim2.new((default-min)/(max-min),0,0,-5)
+    knob.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    knob.Parent = slider
+
+    local dragging = false
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    knob.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relative = math.clamp(input.Position.X - slider.AbsolutePosition.X,0,slider.AbsoluteSize.X)
+            knob.Position = UDim2.new(0,relative,0,-5)
+            local value = math.floor(min + (relative/slider.AbsoluteSize.X)*(max-min))
+            label.Text = name.." "..tostring(value)
+            callback(value)
+        end
+    end)
+end
+
+-- WalkSpeed & JumpPower sliders
+createSlider(movementTab,"WalkSpeed",16,200,16,function(v)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = v
+    end
+end)
+createSlider(movementTab,"JumpPower",50,300,50,function(v)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = v
+    end
+end)
+
+-- Infinite Jump & Noclip buttons
+local infJumpBtn = Instance.new("TextButton")
+infJumpBtn.Size = UDim2.new(0,150,0,40)
+infJumpBtn.Position = UDim2.new(0,10,0,120)
+infJumpBtn.Text = "Infinite Jump: OFF"
+infJumpBtn.Parent = movementTab
+local infJumpEnabled = false
+infJumpBtn.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    infJumpBtn.Text = "Infinite Jump: "..(infJumpEnabled and "ON" or "OFF")
+end)
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+local noclipBtn = Instance.new("TextButton")
+noclipBtn.Size = UDim2.new(0,150,0,40)
+noclipBtn.Position = UDim2.new(0,200,0,120)
+noclipBtn.Text = "Noclip: OFF"
+noclipBtn.Parent = movementTab
+local noclipEnabled = false
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    noclipBtn.Text = "Noclip: "..(noclipEnabled and "ON" or "OFF")
+end)
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- =========================
+-- PLAYERS TAB
+-- =========================
+local playersTab = tabFrames["Players"]
+
+-- Scrolling frame for player gallery
+local gallery = Instance.new("ScrollingFrame")
+gallery.Size = UDim2.new(1,-20,1,-60)
+gallery.Position = UDim2.new(0,10,0,10)
+gallery.CanvasSize = UDim2.new(0,0,0,0)
+gallery.BackgroundColor3 = Color3.fromRGB(30,30,30)
+gallery.BorderSizePixel = 0
+gallery.ScrollBarThickness = 8
+gallery.Parent = playersTab
+
+-- Teleport button
+local teleportBtn = Instance.new("TextButton")
+teleportBtn.Size = UDim2.new(0,150,0,30)
+teleportBtn.Position = UDim2.new(0,10,1,-40)
+teleportBtn.Text = "Teleport"
+teleportBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+teleportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+teleportBtn.TextScaled = true
+teleportBtn.Parent = playersTab
+
+local selectedPlayer = nil
+
+-- Refresh player gallery
+local function refreshPlayers()
+    gallery:ClearAllChildren()
+    local y = 0
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local entry = Instance.new("TextButton")
+            entry.Size = UDim2.new(1,-10,0,40)
+            entry.Position = UDim2.new(0,5,0,y)
+            entry.BackgroundColor3 = Color3.fromRGB(100,100,100)
+            entry.Text = plr.DisplayName.." ("..plr.Name..")"
+            entry.TextColor3 = Color3.fromRGB(255,255,255)
+            entry.TextScaled = true
+            entry.Parent = gallery
+
+            -- Click to select player
+            entry.MouseButton1Click:Connect(function()
+                selectedPlayer = plr
+                for _, c in pairs(gallery:GetChildren()) do
+                    if c:IsA("TextButton") then
+                        c.BackgroundColor3 = Color3.fromRGB(100,100,100)
+                    end
+                end
+                entry.BackgroundColor3 = Color3.fromRGB(0,255,0)
+            end)
+
+            -- Live health and distance update
+            RunService.RenderStepped:Connect(function()
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") 
+                   and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") 
+                   and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local health = math.floor(plr.Character.Humanoid.Health)
+                    local dist = math.floor((plr.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                    entry.Text = plr.DisplayName.." ("..plr.Name..") "..health.." HP | "..dist.." studs"
+                end
+            end)
+
+            y = y + 45
+        end
+    end
+    gallery.CanvasSize = UDim2.new(0,0,0,y)
+end
+
+refreshPlayers()
+Players.PlayerAdded:Connect(refreshPlayers)
+Players.PlayerRemoving:Connect(refreshPlayers)
+
+-- Teleport button
+teleportBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer then
+        TeleportToPlayer:FireServer(selectedPlayer)
+    end
+end)
+
+
+local visualsTab = tabFrames["Visuals"]
+
+local visualLabel = Instance.new("TextLabel")
+visualLabel.Size = UDim2.new(1,0,0,50)
+visualLabel.Position = UDim2.new(0,0,0,10)
+visualLabel.BackgroundTransparency = 1
+visualLabel.Text = "Visual settings will appear here"
+visualLabel.TextColor3 = Color3.fromRGB(255,255,255)
+visualLabel.TextScaled = true
+visualLabel.Parent = visualsTab
+
+
+local settingsTab = tabFrames["Settings"]
+
+-- Theme Color Picker
+local function createColorButton(parent,color,position)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,40,0,40)
+    btn.Position = position
+    btn.BackgroundColor3 = color
+    btn.Text = ""
+    btn.Parent = parent
+    return btn
+end
+
+local colors = {
+    Color3.fromRGB(255,0,0),
+    Color3.fromRGB(0,255,0),
+    Color3.fromRGB(0,0,255),
+    Color3.fromRGB(255,255,0),
+    Color3.fromRGB(255,0,255),
+    Color3.fromRGB(0,255,255)
+}
+
+for i,color in ipairs(colors) do
+    local btn = createColorButton(settingsTab,color,UDim2.new(0,10 + (i-1)*50,0,10))
+    btn.MouseButton1Click:Connect(function()
+        mainFrame.BackgroundColor3 = color
+        tabBar.BackgroundColor3 = color * 0.5
+    end)
+end
+
+-- Font size slider
+local fontSliderFrame = Instance.new("Frame")
+fontSliderFrame.Size = UDim2.new(0,250,0,50)
+fontSliderFrame.Position = UDim2.new(0,10,0,70)
+fontSliderFrame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+fontSliderFrame.Parent = settingsTab
+
+local fontLabel = Instance.new("TextLabel")
+fontLabel.Size = UDim2.new(0,100,1,0)
+fontLabel.Position = UDim2.new(0,0,0,0)
+fontLabel.Text = "Font Size 14"
+fontLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fontLabel.BackgroundTransparency = 1
+fontLabel.Parent = fontSliderFrame
+
+local fontSlider = Instance.new("Frame")
+fontSlider.Size = UDim2.new(0,150,0,10)
+fontSlider.Position = UDim2.new(0,110,0,20)
+fontSlider.BackgroundColor3 = Color3.fromRGB(200,200,200)
+fontSlider.Parent = fontSliderFrame
+
+local knob = Instance.new("Frame")
+knob.Size = UDim2.new(0,20,0,20)
+knob.Position = UDim2.new(0,0,0,-5)
+knob.BackgroundColor3 = Color3.fromRGB(255,0,0)
+knob.Parent = fontSlider
+
+local draggingKnob = false
+knob.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingKnob = true end
+end)
+knob.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then draggingKnob = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if draggingKnob and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local relative = math.clamp(input.Position.X - fontSlider.AbsolutePosition.X,0,fontSlider.AbsoluteSize.X)
+        knob.Position = UDim2.new(0,relative,0,-5)
+        local value = math.floor(10 + (relative/fontSlider.AbsoluteSize.X)*30)
+        fontLabel.Text = "Font Size "..value
+        for _, btn in pairs(tabButtons) do btn.TextSize = value end
+        for _, frame in pairs(tabFrames) do
+            for _, child in pairs(frame:GetChildren()) do
+                if child:IsA("TextLabel") or child:IsA("TextButton") then
+                    child.TextSize = value
+                end
+            end
+        end
+    end
+end)
+
+
+local miscTab = tabFrames["Misc"]
+
+local fbBtn = Instance.new("TextButton")
+fbBtn.Size = UDim2.new(0,150,0,40)
+fbBtn.Position = UDim2.new(0,10,0,10)
+fbBtn.Text = "Fullbright: OFF"
+fbBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+fbBtn.TextColor3 = Color3.fromRGB(255,255,255)
+fbBtn.TextScaled = true
+fbBtn.Parent = miscTab
+
+local fbEnabled = false
+fbBtn.MouseButton1Click:Connect(function()
+    fbEnabled = not fbEnabled
+    fbBtn.Text = "Fullbright: "..(fbEnabled and "ON" or "OFF")
+    Fullbright:FireServer(fbEnabled)
+end)
