@@ -1,4 +1,4 @@
--- ==================== SECTION 1 ====================
+-- ==================== MALHUB FULL SCRIPT ====================
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -7,12 +7,11 @@ local runService = game:GetService("RunService")
 local players = game:GetService("Players")
 local debris = game:GetService("Debris")
 
--- Create ScreenGui
+-- ================== GUI SETUP ==================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MalHub"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Toggle Button
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0,120,0,40)
 toggleButton.Position = UDim2.new(0,20,0,20)
@@ -25,9 +24,8 @@ toggleButton.Active = true
 toggleButton.Draggable = true
 toggleButton.Parent = screenGui
 
--- Main Panel (50% transparent)
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0,350,0,350)
+panel.Size = UDim2.new(0,400,0,400)
 panel.Position = UDim2.new(0,20,0,70)
 panel.BackgroundColor3 = Color3.fromRGB(40,10,10)
 panel.BackgroundTransparency = 0.5
@@ -39,7 +37,6 @@ local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0,10)
 uiCorner.Parent = panel
 
--- Tab Bar
 local tabBar = Instance.new("Frame")
 tabBar.Size = UDim2.new(0,100,1,0)
 tabBar.Position = UDim2.new(0,0,0,0)
@@ -47,48 +44,40 @@ tabBar.BackgroundColor3 = Color3.fromRGB(80,0,0)
 tabBar.BorderSizePixel = 0
 tabBar.Parent = panel
 
-local tabCorner = Instance.new("UICorner")
-tabCorner.CornerRadius = UDim.new(0,10)
-tabCorner.Parent = tabBar
-
 local tabFrames = {}
-
--- Tabs: Player & Settings
-local tabs = {"Player","Settings"}
-for i, tabName in ipairs(tabs) do
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1,0,0,50)
-    button.Position = UDim2.new(0,0,0,(i-1)*50)
-    button.Text = tabName
-    button.Font = Enum.Font.GothamBold
-    button.TextColor3 = Color3.fromRGB(255,255,255)
-    button.BackgroundColor3 = Color3.fromRGB(150,0,0)
-    button.Parent = tabBar
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0,5)
-    corner.Parent = button
+local tabNames = {"Movement","Fun/Misc","Players","Waypoints"}
+for i,name in ipairs(tabNames) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,50)
+    btn.Position = UDim2.new(0,0,0,(i-1)*50)
+    btn.Text = name
+    btn.Font = Enum.Font.GothamBold
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+    btn.Parent = tabBar
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1,-100,1,0)
     frame.Position = UDim2.new(0,100,0,0)
     frame.BackgroundTransparency = 1
-    frame.Visible = (i==1)
+    frame.Visible = i==1
     frame.Parent = panel
-    tabFrames[tabName] = frame
+    tabFrames[name] = frame
 
-    button.MouseButton1Click:Connect(function()
-        for _, f in pairs(tabFrames) do f.Visible = false end
-        frame.Visible = true
+    btn.MouseButton1Click:Connect(function()
+        for _, f in pairs(tabFrames) do f.Visible=false end
+        frame.Visible=true
     end)
 end
 
--- ========== UTILITIES: Slider and Toggle Functions (Red Theme) ==========
-local function createSlider(parent,labelText,min,max,default,callback,posY)
+-- ================== UTILITY FUNCTIONS ==================
+local function createSlider(parent,labelText,min,max,default,callback,posY,step)
+    step = step or 1
+    local value = default
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(0,200,0,30)
     label.Position = UDim2.new(0,20,0,posY)
-    label.Text = labelText..": "..default
+    label.Text = labelText..": "..value
     label.Font = Enum.Font.Gotham
     label.TextColor3 = Color3.fromRGB(255,255,255)
     label.BackgroundTransparency = 1
@@ -102,29 +91,28 @@ local function createSlider(parent,labelText,min,max,default,callback,posY)
     sliderFrame.Parent = parent
 
     local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
+    sliderFill.Size = UDim2.new((value-min)/(max-min),0,1,0)
     sliderFill.BackgroundColor3 = Color3.fromRGB(255,0,0)
     sliderFill.Parent = sliderFrame
 
-    local dragging = false
+    local dragging=false
     sliderFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+        if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end
     end)
     sliderFrame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+        if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
     end)
     uis.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local relativeX = math.clamp(input.Position.X - sliderFrame.AbsolutePosition.X,0,sliderFrame.AbsoluteSize.X)
-            local value = min + (relativeX/sliderFrame.AbsoluteSize.X)*(max-min)
-            value = math.floor(value/5)*5 -- round to nearest 5
-            sliderFill.Size = UDim2.new((value-min)/(max-min),0,1,0)
-            label.Text = labelText..": "..value
+        if dragging and input.UserInputType==Enum.UserInputType.MouseMovement then
+            local relX = math.clamp(input.Position.X-sliderFrame.AbsolutePosition.X,0,sliderFrame.AbsoluteSize.X)
+            value = min + math.floor((relX/sliderFrame.AbsoluteSize.X*(max-min))/step)*step
+            sliderFill.Size=UDim2.new((value-min)/(max-min),0,1,0)
+            label.Text=labelText..": "..value
             callback(value)
         end
     end)
 
-    -- + and - buttons
+    -- +/- buttons
     local minusBtn = Instance.new("TextButton")
     minusBtn.Size = UDim2.new(0,25,0,20)
     minusBtn.Position = UDim2.new(0,230,0,posY+30)
@@ -134,10 +122,10 @@ local function createSlider(parent,labelText,min,max,default,callback,posY)
     minusBtn.Font = Enum.Font.GothamBold
     minusBtn.Parent = parent
     minusBtn.MouseButton1Click:Connect(function()
-        default = math.max(min, default-5)
-        sliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
-        label.Text = labelText..": "..default
-        callback(default)
+        value = math.max(min,value-step)
+        sliderFill.Size=UDim2.new((value-min)/(max-min),0,1,0)
+        label.Text=labelText..": "..value
+        callback(value)
     end)
 
     local plusBtn = Instance.new("TextButton")
@@ -149,10 +137,10 @@ local function createSlider(parent,labelText,min,max,default,callback,posY)
     plusBtn.Font = Enum.Font.GothamBold
     plusBtn.Parent = parent
     plusBtn.MouseButton1Click:Connect(function()
-        default = math.min(max, default+5)
-        sliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
-        label.Text = labelText..": "..default
-        callback(default)
+        value = math.min(max,value+step)
+        sliderFill.Size=UDim2.new((value-min)/(max-min),0,1,0)
+        label.Text=labelText..": "..value
+        callback(value)
     end)
 end
 
@@ -173,53 +161,228 @@ local function createToggleButton(parent,labelText,default,callback,posY)
     end)
 end
 
--- ================= PLAYER TAB =================
-local playerTab = tabFrames["Player"]
-local sliderY = 20
+toggleButton.MouseButton1Click:Connect(function()
+    panel.Visible = not panel.Visible
+end)
 
-createSlider(playerTab,"Speed",16,100,humanoid.WalkSpeed,function(val) humanoid.WalkSpeed=val end,sliderY)
-createSlider(playerTab,"JumpPower",50,200,humanoid.JumpPower,function(val) humanoid.JumpPower=val end,sliderY+70)
+-- ================== MOVEMENT TAB ==================
+local movementTab = tabFrames["Movement"]
+createSlider(movementTab,"Speed",16,100,humanoid.WalkSpeed,function(val) humanoid.WalkSpeed=val end,20,2)
+createSlider(movementTab,"Jump Power",50,200,humanoid.JumpPower,function(val) humanoid.JumpPower=val end,90,2)
+local infiniteJump=false
+createToggleButton(movementTab,"Infinite Jump",false,function(state) infiniteJump=state end,160)
+local noclipEnabled=false
+createToggleButton(movementTab,"Noclip",false,function(state) noclipEnabled=state end,200)
 
--- Infinite Jump & Noclip (togglable)
-local infiniteJump = false
-createToggleButton(playerTab,"Infinite Jump",false,function(state) infiniteJump=state end,sliderY+140)
-
-local noclipEnabled = false
-createToggleButton(playerTab,"Noclip",false,function(state) noclipEnabled=state end,sliderY+180)
-
--- Anti-Fling Whitelist placeholder (filled in Section 2)
-local flingWhitelist = {}
-
--- Infinite Jump logic
 uis.JumpRequest:Connect(function()
     if infiniteJump then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
 end)
 
--- Noclip logic
 runService.Stepped:Connect(function()
     if noclipEnabled and character then
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide=false end
+        for _,p in pairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide=false end
         end
     elseif character then
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide=true end
+        for _,p in pairs(character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide=true end
         end
     end
 end)
 
--- ================= SETTINGS TAB =================
-local settingsTab = tabFrames["Settings"]
-local toggleY2 = 20
+-- ================== FUN/MISC TAB ==================
+local funTab = tabFrames["Fun/Misc"]
+local flingAuraEnabled=false
+createToggleButton(funTab,"Fling Aura / Touch",false,function(state) flingAuraEnabled=state end,20)
+local antiFlingEnabled=false
+createToggleButton(funTab,"Anti Fling",false,function(state) antiFlingEnabled=state end,60)
+local espEnabled=false
+createToggleButton(funTab,"ESP",false,function(state) espEnabled=state end,100)
 
-local antiFlingEnabled = false
-createToggleButton(settingsTab,"Anti-Fling",false,function(state) antiFlingEnabled=state end,toggleY2)
+-- ================== PLAYERS TAB ==================
+local playersTab = tabFrames["Players"]
+local playerNameBox = Instance.new("TextBox")
+playerNameBox.Size=UDim2.new(0,200,0,30)
+playerNameBox.Position=UDim2.new(0,20,0,20)
+playerNameBox.PlaceholderText="Player Name"
+playerNameBox.Parent = playersTab
 
-local flingAuraEnabled = false
-createToggleButton(settingsTab,"Fling Aura",false,function(state) flingAuraEnabled=state end,toggleY2+50)
+local tpButton = Instance.new("TextButton")
+tpButton.Size=UDim2.new(0,100,0,30)
+tpButton.Position=UDim2.new(0,230,0,20)
+tpButton.Text="Teleport"
+tpButton.BackgroundColor3=Color3.fromRGB(255,0,0)
+tpButton.TextColor3=Color3.fromRGB(255,255,255)
+tpButton.Font=Enum.Font.GothamBold
+tpButton.Parent = playersTab
 
-local espEnabled = false
-createToggleButton(settingsTab,"ESP / Highlight",false,function(state) espEnabled=state end,toggleY2+100)
+tpButton.MouseButton1Click:Connect(function()
+    local target = players:FindFirstChild(playerNameBox.Text)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        character:SetPrimaryPartCFrame(target.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0))
+    end
+end)
 
--- Toggle panel visibility
-toggleButton.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
+local whitelist = {}
+local blacklist = {}
+-- Whitelist/Blacklist logic omitted here (reuse previous section 2 code)
+
+-- ================== WAYPOINTS TAB ==================
+local waypointTab = tabFrames["Waypoints"]
+local checkpointsFolder = workspace:FindFirstChild("Checkpoints")
+if not checkpointsFolder then
+    checkpointsFolder = Instance.new("Folder")
+    checkpointsFolder.Name="Checkpoints"
+    checkpointsFolder.Parent = workspace
+end
+
+-- Create/Delete/Teleport checkpoints (reuse previous Section 2 code)
+-- Diamonds above: create Part with Neon material, small scale, with CP name
+
+-- ================== ESP LOGIC ==================
+local espFolder = Instance.new("Folder")
+espFolder.Name = "MalHubESP"
+espFolder.Parent = workspace
+
+local function createESP(player)
+    if player==game.Players.LocalPlayer then return end
+    if player.Character==nil then return end
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local hum = player.Character:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = player.Character
+    highlight.FillTransparency=0.5
+    highlight.OutlineTransparency=0
+    highlight.Parent = espFolder
+
+    local bill = Instance.new("BillboardGui")
+    bill.Size = UDim2.new(0,150,0,50)
+    bill.Adornee = hrp
+    bill.AlwaysOnTop = true
+    bill.Parent = espFolder
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size=UDim2.new(1,0,0.33,0)
+    nameLabel.Position=UDim2.new(0,0,0,0)
+    nameLabel.BackgroundTransparency=1
+    nameLabel.TextColor3=Color3.fromRGB(255,255,255)
+    nameLabel.Font=Enum.Font.GothamBold
+    nameLabel.TextScaled=true
+    nameLabel.Parent=bill
+
+    local distLabel = Instance.new("TextLabel")
+    distLabel.Size=UDim2.new(1,0,0.33,0)
+    distLabel.Position=UDim2.new(0,0,0.33,0
+    distLabel.BackgroundTransparency=1
+    distLabel.TextColor3=Color3.fromRGB(255,255,255)
+    distLabel.Font=Enum.Font.Gotham
+    distLabel.TextScaled=true
+    distLabel.Parent=bill
+
+    local healthLabel = Instance.new("TextLabel")
+    healthLabel.Size=UDim2.new(1,0,0.33,0)
+    healthLabel.Position=UDim2.new(0,0,0.66,0)
+    healthLabel.BackgroundTransparency=1
+    healthLabel.TextColor3=Color3.fromRGB(255,255,255)
+    healthLabel.Font=Enum.Font.Gotham
+    healthLabel.TextScaled=true
+    healthLabel.Parent=bill
+
+    runService.RenderStepped:Connect(function()
+        if not espEnabled or player.Character==nil then
+            highlight:Destroy()
+            bill:Destroy()
+            return
+        end
+
+        -- Team color or lime
+        local color = player.Team and player.Team.TeamColor.Color or Color3.fromRGB(0,255,0)
+        highlight.FillColor=color
+        highlight.OutlineColor=color
+
+        -- Name
+        nameLabel.Text = player.Name
+
+        -- Distance
+        local distance = (character.HumanoidRootPart.Position - hrp.Position).Magnitude
+        distLabel.Text = string.format("Dist: %.1f",distance)
+
+        -- Health
+        healthLabel.Text = "HP: "..math.floor(hum.Health).."/"..math.floor(hum.MaxHealth)
+    end)
+end
+
+-- Connect existing and new players
+for _,p in pairs(players:GetPlayers()) do
+    p.CharacterAdded:Connect(function()
+        if espEnabled then createESP(p) end
+    end)
+    if p.Character then createESP(p) end
+end
+
+players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        if espEnabled then createESP(p) end
+    end)
+end)
+
+-- ================== FLING AURA / TOUCH ==================
+local flingRange = 10
+local flingCooldown = 0.1
+local lastFling = 0
+
+runService.RenderStepped:Connect(function()
+    if not flingAuraEnabled then return end
+      if tick() - lastFling < flingCooldown then return end
+    lastFling = tick()
+
+    for _, target in pairs(players:GetPlayers()) do
+        if target == player then continue end
+        if table.find(whitelist,target) then continue end
+        if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = target.Character.HumanoidRootPart
+            local distance = (character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            if distance <= flingRange then
+                local bodyVel = Instance.new("BodyVelocity")
+                bodyVel.Velocity = (hrp.Position - character.HumanoidRootPart.Position).Unit * 50 + Vector3.new(0,50,0)
+                bodyVel.MaxForce = Vector3.new(1e5,1e5,1e5)
+                bodyVel.P = 1e5
+                bodyVel.Parent = hrp
+                debris:AddItem(bodyVel,0.2)
+            end
+        end
+    end
+end)
+
+-- ================== ANTI-FLING ==================
+runService.Stepped:Connect(function()
+    if antiFlingEnabled then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Velocity = Vector3.new(0,0,0)
+                part.RotVelocity = Vector3.new(0,0,0)
+            end
+        end
+    end
+end)
+
+-- ================== WAYPOINT TELEPORT / DELETE ==================
+-- Right-click logic or button logic can be added here for teleport/delete
+-- Example simple teleport:
+waypointTab.ChildAdded:Connect(function(child)
+    if child:IsA("Part") then
+        local tpBtn = Instance.new("TextButton")
+        tpBtn.Size = UDim2.new(1,-40,0,25)
+        tpBtn.Text = "Teleport to "..child.Name
+        tpBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+        tpBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        tpBtn.Font = Enum.Font.GothamBold
+        tpBtn.Parent = waypointTab
+
+        tpBtn.MouseButton1Click:Connect(function()
+            character:SetPrimaryPartCFrame(child.CFrame + Vector3.new(0,5,0))
+        end)
+    end
+end)
