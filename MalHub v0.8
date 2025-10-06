@@ -401,3 +401,74 @@ fbBtn.MouseButton1Click:Connect(function()
     fbBtn.Text = "Fullbright: "..(fbEnabled and "ON" or "OFF")
     Fullbright:FireServer(fbEnabled)
 end)
+
+-- =========================
+-- Malevolent Hub Server Script
+-- =========================
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+
+-- Create folder for RemoteEvents if not exists
+local AdminRemotes = ReplicatedStorage:FindFirstChild("AdminRemotes")
+if not AdminRemotes then
+    AdminRemotes = Instance.new("Folder")
+    AdminRemotes.Name = "AdminRemotes"
+    AdminRemotes.Parent = ReplicatedStorage
+end
+
+-- RemoteEvent: Teleport
+local TeleportToPlayer = AdminRemotes:FindFirstChild("TeleportToPlayer")
+if not TeleportToPlayer then
+    TeleportToPlayer = Instance.new("RemoteEvent")
+    TeleportToPlayer.Name = "TeleportToPlayer"
+    TeleportToPlayer.Parent = AdminRemotes
+end
+
+-- RemoteEvent: Fullbright
+local Fullbright = AdminRemotes:FindFirstChild("Fullbright")
+if not Fullbright then
+    Fullbright = Instance.new("RemoteEvent")
+    Fullbright.Name = "Fullbright"
+    Fullbright.Parent = AdminRemotes
+end
+
+-- Save default lighting to restore
+local defaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
+
+-- =========================
+-- TELEPORT FUNCTION
+-- =========================
+TeleportToPlayer.OnServerEvent:Connect(function(player, targetPlayer)
+    if not player or not targetPlayer then return end
+    if player.Character and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        -- Teleport above target safely
+        player.Character:SetPrimaryPartCFrame(targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,5,0))
+    end
+end)
+
+-- =========================
+-- FULLBRIGHT FUNCTION
+-- =========================
+Fullbright.OnServerEvent:Connect(function(player, toggle)
+    if toggle then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+    else
+        -- Restore defaults
+        Lighting.Brightness = defaultLighting.Brightness
+        Lighting.ClockTime = defaultLighting.ClockTime
+        Lighting.FogEnd = defaultLighting.FogEnd
+        Lighting.Ambient = defaultLighting.Ambient
+        Lighting.OutdoorAmbient = defaultLighting.OutdoorAmbient
+    end
+end)
