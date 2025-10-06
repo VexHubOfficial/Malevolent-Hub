@@ -1,0 +1,56 @@
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local AdminRemotes = ReplicatedStorage:WaitForChild("AdminRemotes")
+local KickPlayer = AdminRemotes:WaitForChild("KickPlayer")
+local TeleportToPlayer = AdminRemotes:WaitForChild("TeleportToPlayer")
+local Fullbright = AdminRemotes:WaitForChild("Fullbright")
+
+-- List of admins
+local admins = {"YourUsernameHere"} -- Add your Roblox username(s)
+
+local function isAdmin(player)
+    for _, name in ipairs(admins) do
+        if player.Name == name then return true end
+    end
+    return false
+end
+
+-- Kick player
+KickPlayer.OnServerEvent:Connect(function(admin, targetPlayer)
+    if isAdmin(admin) and targetPlayer and targetPlayer:IsA("Player") then
+        targetPlayer:Kick("Kicked by an admin!")
+    end
+end)
+
+-- Teleport player
+TeleportToPlayer.OnServerEvent:Connect(function(admin, targetPlayer)
+    if isAdmin(admin) and targetPlayer and targetPlayer.Character and admin.Character then
+        local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local myHRP = admin.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and myHRP then
+            myHRP.CFrame = hrp.CFrame + Vector3.new(0,5,0)
+        end
+    end
+end)
+
+-- Fullbright (server-wide)
+Fullbright.OnServerEvent:Connect(function(admin, enable)
+    if isAdmin(admin) then
+        if enable then
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 12
+            Lighting.FogEnd = 100000
+            Lighting.Ambient = Color3.fromRGB(255,255,255)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+        else
+            -- Reset to default (or you could save previous settings)
+            Lighting.Brightness = 1
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 1000
+            Lighting.Ambient = Color3.fromRGB(128,128,128)
+            Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
+        end
+    end
+end)
